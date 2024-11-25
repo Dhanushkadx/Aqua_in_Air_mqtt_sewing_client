@@ -1,0 +1,25 @@
+{
+  "wifissid_ap": "",
+  "wifissid_sta": "mac",
+  "wifipass_ap": "",
+  "wifipass_sta": "Aqua@10T",
+  "server_url": "192.168.25.20",
+  "device_token": "slbof5wXWTi5Yy5JRhxO",
+  "server_port": "1883",
+  "wifi_reconnect_time": 30,
+  "updates_interval": 30,
+  "realTime" : false,
+  "system_pass": "1234",
+  "http_username": "admin",
+  "http_password": "admin",
+  "device_location": "",
+  "sewing_machine_type": "OL",
+  "operation_name": "unknown",
+  "serial_no": "12345",
+  "assest_no": "AS0001",
+  "barcode_no": "BR1234",
+  "yesterDay" : 1,
+  "preScale"  : 1
+}
+
+ 

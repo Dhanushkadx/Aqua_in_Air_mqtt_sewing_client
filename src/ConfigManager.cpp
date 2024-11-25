@@ -139,7 +139,7 @@ void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
   Serial.println(doc["wifipass_ap"].as<String>());
 
   Serial.print(F("wifipass_sta: "));
-  Serial.println(doc["wifipass_sta"].as<String>());
+  //Serial.println(doc["wifipass_sta"].as<String>());
 
   Serial.print(F("server_url: "));
   Serial.println(doc["server_url"].as<String>());

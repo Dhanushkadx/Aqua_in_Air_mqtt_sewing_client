@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>IoT Configuration Page</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			background-color: #f7f7f7;
+		}
+
+		h1 {
+			margin-top: 40px;
+			text-align: center;
+			color: #0072c6;
+		}
+
+		form {
+			margin: 40px auto;
+			padding: 20px;
+			background-color: #ffffff;
+			border: 1px solid #0072c6;
+			border-radius: 5px;
+			max-width: 500px;
+		}
+
+		label {
+			display: block;
+			margin-top: 10px;
+			color: #0072c6;
+		}
+
+		input[type="text"], input[type="password"], input[type="url"], input[type="submit"] {
+			display: block;
+			margin-top: 5px;
+			padding: 5px;
+			width: 100%;
+			border: 1px solid #c2c2c2;
+			border-radius: 3px;
+			font-size: 16px;
+		}
+
+		input[type="submit"] {
+			margin-top: 20px;
+			background-color: #0072c6;
+			color: #ffffff;
+			border: none;
+			cursor: pointer;
+		}
+
+		input[type="submit"]:hover {
+			background-color: #005fa3;
+		}
+
+		.error {
+			color: red;
+			margin-top: 5px;
+			font-size: 14px;
+		}
+	</style>
+	<script>
+		function validateForm() {
+			var ssid_ap = document.getElementById("wifissid_ap").value;
+			var ssid_sta = document.getElementById("wifissid_sta").value;
+			var pass_sta = document.getElementById("wifipass_sta").value;
+			var url = document.getElementById("server_url").value;
+			var token = document.getElementById("device_token").value;
+			var port = document.getElementById("server_port").value;
+			var system_pass = document.getElementById("system_password").value;
+
+			if (ssid_sta === "") {
+				alert("Wi-Fi SSID cannot be empty.");
+				return false;
+			}
+
+			if (url === "") {
+				alert("Server URL cannot be empty.");
+				return false;
+			}
+
+			if (token === "") {
+				alert("Device Token cannot be empty.");
+				return false;
+			}
+
+			if (port === "") {
+				alert("Server Port cannot be empty.");
+				return false;
+			}
+
+			if (system_pass === "") {
+				alert("System Password cannot be empty.");
+				return false;
+			}
+
+			return true;
+		}
+	</script>
+</head>
+<body>
+	<h1>IoT Configuration Page</h1>
+	<form action="/get" target="hidden-form">
+	
+			<label for="wifissid_sta">Wi-Fi SSID:</label>
+			<input type="text" id="wifissid_sta" name="wifissid_sta">
+
+			<label for="wifipass_sta">Wi-Fi Password:</label>
+			<input type="password" id="wifipass_sta" name="wifipass_sta">
+
+			<label for="device_token">Device Token:</label>
+			<input type="text" id="device_token" name="device_token">
+
+			<label for="server_url">Server URL:</label>
+			<input type="text" id="server_url" name="server_url">
+
+			<label for="server_port">Server Port:</label>
+			<input type="text" id="server_port" name="server_port">
+            
+            <label for="wifi_reconnect_time">Reconnect time:</label>
+			<input type="text" id="wifi_reconnect_time" name="wifi_reconnect_time">
+			
+			<label for="updates_interval">Timely data updates interval:</label>
+			<input type="text" id="updates_interval" name="updates_interval">
+
+			<label for="device_location">Device location:</label>
+			<input type="text" id="device_location" name="device_location">
+
+			<label for="sewing_machine_type">Machine type:</label>
+			<input type="text" id="sewing_machine_type" name="sewing_machine_type">
+
+			<label for="operation_name">Operation name:</label>
+			<input type="text" id="operation_name" name="operation_name">
+
+			<label for="serial_no">Machine serial No:</label>
+			<input type="text" id="serial_no" name="serial_no">
+
+			<label for="assest_no">Assest No:</label>
+			<input type="text" id="assest_no" name="assest_no">
+
+			<label for="barcode_no">Barcode No:</label>
+			<input type="text" id="barcode_no" name="barcode_no">
+			
+			<label for="system_pass">System Password:</label>
+			<input type="password" id="system_pass" name="system_pass">
+
+			<input type="submit" value="Save Configuration">
+		</form>
+	</body>
+</html>
+<script type="text/javascript">
+        var gateway = `ws://${window.location.hostname}/ws`;
+        var websocket;
+        window.addEventListener('load', onLoad);
+
+        function onLoad(event) {
+            initWebSocket();
+        }
+
+        function initWebSocket() {
+            console.log('Trying to open a WebSocket connection...');
+            websocket = new WebSocket(gateway);
+            websocket.onopen = onOpen;
+            websocket.onclose = onClose;
+            websocket.onmessage = onMessage;
+        }
+
+        function onOpen(event) {
+            console.log('Connection opened so get default values');
+            websocket.send(JSON.stringify({
+                action: "sys"
+            }));
+
+        }
+
+        function onClose(event) {
+            console.log('Connection closed');
+            setTimeout(initWebSocket, 2000);
+        }
+
+function onMessage(event) {
+
+    const objectToRead = JSON.parse(event.data);
+
+    if (objectToRead.respHeader === "pint") {
+        console.log(objectToRead.respHeader);
+        document.getElementById('wifissid_sta').value = objectToRead.wifissid_sta;
+        document.getElementById('wifipass_sta').value = objectToRead.wifipass_sta;
+        document.getElementById('device_token').value = objectToRead.device_token;
+        document.getElementById('server_url').value = objectToRead.server_url;
+        document.getElementById('server_port').value = objectToRead.server_port;
+        document.getElementById('wifi_reconnect_time').value = objectToRead.wifi_reconnect_time;
+        document.getElementById('updates_interval').value = objectToRead.updates_interval;
+        document.getElementById('system_pass').value = objectToRead.system_pass;		
+		document.getElementById('device_location').value = objectToRead.device_location;
+		document.getElementById('sewing_machine_type').value = objectToRead.sewing_machine_type;
+		document.getElementById('operation_name').value = objectToRead.operation_name;
+		document.getElementById('serial_no').value = objectToRead.serial_no;
+		document.getElementById('assest_no').value = objectToRead.assest_no;
+		document.getElementById('barcode_no').value = objectToRead.barcode_no;
+		document.getElementById('system_pass').value = objectToRead.system_pass;
+              
+    }
+
+        }
+
+    </script>
+
+
+
+
+
+

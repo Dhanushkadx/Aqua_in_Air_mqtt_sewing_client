@@ -9,16 +9,24 @@
 #ifndef PINSX_H_
 #define PINSX_H_
 
-
+//#define PLC_IOT_BRIDGE
 
 #ifdef PLC_IOT_BRIDGE
-
-#define PIN_ONLINE 32
-#define PIN_PROGRAM 23
-#define PIN_LED_PROG 2
+#define RELAY1 32
+#define RELAY2 33
+#define PIN_DOWNTIME_SWITCH 23
+#define PIN_LED_FAULT RELAY1
+#define PIN_ONLINE RELAY2
 #define PIN_INPUT1 22//19
 #define PIN_INPUT2 21//22
-#define PIN_INPUT3 19
+#define PIN_INPUT3 PIN_DOWNTIME_SWITCH
+#define PIN_PROGRAM 18
+#define PIN_LED_PROG 5
+
+#define thermoDO 16
+#define thermoCS 26
+#define thermoCLK 25
+#define BIN_BUZZER 4
 
 
 #else
