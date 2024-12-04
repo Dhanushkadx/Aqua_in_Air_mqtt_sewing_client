@@ -89,7 +89,8 @@ void Task1code( void * pvParameters ){
 	   vTaskDelay(10 / portTICK_RATE_MS);
 	  if (configMode_enable == false)
 	  {
-		   com_loop();   
+		   //com_loop();   
+       live_loop();
 	  }
   //
   } 
@@ -130,11 +131,13 @@ void Task3code( void * pvParameters ){
   Serial.print("Task3 running on core ");
   Serial.println(xPortGetCoreID());
   static uint32_t x=0;
+   esp_task_wdt_init(10, true);
   for(;;){
   
       //if (wifiStarted) {
          // ntp_loop();
      //   }
+     com_loop();
     vTaskDelay(10 / portTICK_RATE_MS);
   }
 }
@@ -144,10 +147,12 @@ void Task5code(void* pvParameters){
   while(1){
     vTaskDelay(1 / portTICK_RATE_MS);
     if(ledState){
+#ifndef IOT_PULSE_X
       digitalWrite(PIN_ONLINE,HIGH);
 				delay(100);
 				digitalWrite(PIN_ONLINE,LOW);
 				delay(100);
+#endif
     }
     else{
 
@@ -200,11 +205,13 @@ void setup() {
   Timer_idle_detect.interval = 10000;
   Timer_idle_detect.previousMillis = millis();
 
-  
+  #ifndef IOT_PULSE_X
   pinMode(PIN_ONLINE,OUTPUT);
   digitalWrite(PIN_ONLINE,LOW);
   pinMode(PIN_PROGRAM,INPUT_PULLUP);
   pinMode(PIN_LED_PROG,OUTPUT);
+  #endif
+  
   pinMode(PIN_LED_FAULT,OUTPUT);
   
 	initSPIFFS();	
