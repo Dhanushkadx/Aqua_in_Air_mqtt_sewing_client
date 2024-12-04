@@ -15,6 +15,7 @@
 #include "clockConfig.h"
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
+#include "msg_store.h"
 
 #ifdef THERMO_OK
 #include "thermo.h"
@@ -25,11 +26,14 @@ extern char* fw_ver;
 extern bool updateRequestSent;
 extern bool tbConnected; 
 extern byte bssid[];
+extern PubSubClient client;
 
 	void initTimers();
 	void com_loop();
-	void tb_live();
-
+	bool mqtt_auth_request();
+	void live_loop();
+	void mqtt_live();
+	void callback(char* topic, byte* payload, unsigned int length);
 	void send_data_to_tb();
 	void dayBreakConuterReset();
 	 void send_metaData_json();

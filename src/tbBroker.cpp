@@ -3,13 +3,22 @@
 char* fw_ver = "1.2";
 
 char* mqttBaseTopic = "nodered/sewing/";
+// Device-specific topics
+const char* authRequestTopic = "auth/request";
+const char* authResponseTopic = "auth/response";
  // Construct the complete topic for this machine
 
 TimerSW Timer_busy;
+uint8_t currentState = 0;
+uint8_t prevState = 10;
 bool tbConnected = false;
+bool authenticated = false;
+bool oniline_msg_possible = false;
 volatile bool ledState;
 TimerSW Timer_tb_demon;
 TimerSW Timer_tb_update;
+TimerSW Timer_auth_request;
+TimerSW Timer_mqtt_server_response;
 EventGroupHandle_t EventRTOS_IO_events;
 
 // Initialize underlying client, used to establish a connection
@@ -34,69 +43,128 @@ void initTimers(){
 	 Timer_tb_update.previousMillis = millis();
 	 Timer_busy.interval = 1000;
 	 Timer_busy.previousMillis = millis();
+	 Timer_auth_request.previousMillis = millis();
+	 Timer_auth_request.interval = 5000;
+	 Timer_mqtt_server_response.interval = 5000;
+	 Timer_mqtt_server_response.previousMillis = millis();
 }
 
 
-void tb_live(){
-	if (!client.connected()) {
+
+void mqtt_live(){
+	static uint8_t mqtt_status=0;
+	switch (mqtt_status)
+	{
+	case 0:{
+		if (WiFi.status() != WL_CONNECTED){authenticated = false; oniline_msg_possible = false; return;}
+		else{
+			if(!client.connected()){
+				authenticated = false; oniline_msg_possible = false;
+			mqtt_status = 1;
+			}
+		}
+	}
+		break;
+	case 1:{
+		oniline_msg_possible = false;
 		tbConnected = false;
+#ifndef IOT_PULSE_X
 		digitalWrite(PIN_ONLINE,LOW);
-		Serial.print(F("Connecting to: "));
-		Serial.println(structSysConfig.server_url);
-		//Serial.print(F(" with token "));
-		//Serial.println(structSysConfig.device_token);
+#endif
 		client.setKeepAlive(60);
-		Serial.println(F("Connecting to MQTT…"));
 		uint16_t port_number = atoi(structSysConfig.server_port);
 		client.setServer(structSysConfig.server_url, port_number);
-    	while (!client.connected()) {         
-			//clientId += String(WiFi.macAddress());
-			char mqttTopic [50];
+		client.setCallback(callback);			
+		mqtt_status = 2;
+		
+	}
+		break;
+	case 2:{
+			char mqttTopic[50] = {0};
 			strcpy(mqttTopic,mqttBaseTopic);
 			strcat(mqttTopic,device_id_macStr);
-			 // immideat changig data send
-			DynamicJsonDocument doc(512);  // Adjust the size based on your JSON structure	
+			 // prepare retain msg when device goes offline
+			DynamicJsonDocument doc(512);  
 			doc["id"] = device_id_macStr;
 			doc["friendly_name"] = structSysConfig.friendly_name;
-			char IP[] = "xxx.xxx.xxx.xxx";          // buffer
+			char IP[] = "xxx.xxx.xxx.xxx";      
 						IPAddress ip = WiFi.localIP();
 						String my_ip = ip.toString();
 			doc["ip"] = my_ip.c_str();
 			doc["mac"] = macStr;
 			doc["status"] = "offline";
 			String jsonString;
-			Serial.print(F("JSON Sending>"));
 			serializeJson(doc, jsonString);
-			Serial.println(jsonString.c_str());
-			Serial.printf("The client %s connects to the mqtt broker at %s\n",device_id_macStr,structSysConfig.server_url);
+			Serial.printf_P(PSTR("MQTT will:%s\n"), jsonString.c_str());
+			Serial.printf_P(PSTR("MQTT connecting:%s port:%s \n"), structSysConfig.server_url,structSysConfig.server_port);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			if (client.connect(device_id_macStr, "", "", mqttTopic, 1, true, jsonString.c_str())) {
-				Serial.println(F("connected to server"));
-				digitalWrite(PIN_ONLINE,HIGH);
-				tbConnected = true;
-				send_metaData_json();
-				
-			} else {
-				Serial.print(F("failed with state  "));
-				Serial.println(client.state());
-				Serial.println(F("reconnect..."));
-				delay(2000);
-				
-			}
-    	}
-
+			client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str());
+			mqtt_status = 3;			
 		
-				
+	}
+		break;	
+	case 3:{
+			Serial.println(F("MQTT Wait for responce"));
+			if(client.connected()){
+#ifndef IOT_PULSE_X
+			digitalWrite(PIN_ONLINE,HIGH);
+#endif
+			tbConnected = true;
+				 // Subscribe to the authentication response topic
+		 //dynamically generate auth topic for the device
+			char mqttTopic_sub [100];
+			strcpy(mqttTopic_sub,mqttBaseTopic);
+			strcat(mqttTopic_sub,authResponseTopic);
+			strcat(mqttTopic_sub,"/");
+			strcat(mqttTopic_sub,device_id_macStr);
+			
+			Serial.printf_P(PSTR("MQTT Subscribe Topic:%s \n"),mqttTopic_sub);
+			client.subscribe(mqttTopic_sub);
+			mqtt_auth_request();
+			Timer_auth_request.previousMillis = millis();
+			mqtt_status = 4;
 			}
+			if(Timer_mqtt_server_response.Timer_run()){
+				mqtt_status = 2;
+			}
+			
+	}
+		break;
+	case 4:{
+			if(authenticated){
+				Serial.println(F("MQTT AUTH Ok"));
+				if(!processOfflineMessages()){
+				oniline_msg_possible = true;
+				mqtt_status = 0;
+				}
+			}
+			if(Timer_auth_request.Timer_run()){
+				Timer_auth_request.previousMillis = millis();
+				Serial.println(F("MQTT AUTH request sent"));
+				if(!mqtt_auth_request()){
+				}
+			}
+	}
+		break;
+	default:
+		break;
+	}
+}
+				
+
+void live_loop(){
+	 mqtt_live();
+	 wifi_live();
+	 client.loop(); 
 	
 }
-
-
  
  void com_loop() {	 
-	  wifi_live();	  
-	  tb_live();
-	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));	 
+	 // wifi_live();	  
+	  //tb_live();
+	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));	
+
+
 	  bool Current_faulty_alarm_status_local = Current_faulty_alarm_status;
 	  eMC_state curruntMCstate_local = curruntMCstate;
 	  bool actRun_local = actRun;	  
@@ -127,14 +195,7 @@ void tb_live(){
 	 DynamicJsonDocument doc(512);  // Adjust the size based on your JSON structure	
 	 doc["msgTyp"] = "realTm";
 	 doc["id"] = device_id_macStr;
-	 doc["fw_ver"] = fw_ver;
-	 doc["location"] = structSysConfig.location;
-  	 doc["friendly_name"] = structSysConfig.friendly_name;
-   	 char IP[] = "xxx.xxx.xxx.xxx";          // buffer
-				IPAddress ip = WiFi.localIP();
-				String my_ip = ip.toString();
-     doc["ip"] = my_ip.c_str();
-     doc["mac"] = macStr;
+	 doc["friendly_name"] = structSysConfig.friendly_name;
 	 bool sendJson = false;
 	 // check MC state changers for immediate data sending
 	 if (prevMCstate!=curruntMCstate_local){
@@ -160,20 +221,15 @@ void tb_live(){
 		  doc["act_run"] = actRun;
 		  sendJson = true;
 	 }
-	 
-	  /*if (Prev_faulty_alarm_status!=Current_faulty_alarm_status_local){
-		  Prev_faulty_alarm_status=Current_faulty_alarm_status_local;
-		  doc["fault"] = Prev_faulty_alarm_status;
-		  sendJson = true;
-	  }	 */
-
+	
 	  // Serialize the JsonDocument to a string
 	  if(sendJson){
+		if(!oniline_msg_possible ){Serial.println(F("AUTH Faild")); return;}
 		send_data_to_tb();
 		delay(1000);
 		sendJson = false;
 		String jsonString;
-		Serial.print(F("JSON Sending>"));
+		Serial.print(F("online JSON Sending>"));
 		serializeJson(doc, jsonString);
 		Serial.println(jsonString.c_str());
 		// Publish the JSON payload to the MQTT topic
@@ -185,10 +241,55 @@ void tb_live(){
 		} else {
 			Serial.println(F("Failed to send JSON payload"));
 		} 
-
 	  }
 		
  }
+
+bool mqtt_auth_request(){
+	char mqttTopic_pub [100];
+	strcpy(mqttTopic_pub,mqttBaseTopic);
+	strcat(mqttTopic_pub,authRequestTopic);
+	strcat(mqttTopic_pub,"/");
+	strcat(mqttTopic_pub,device_id_macStr);
+	Serial.printf_P(PSTR("MQTT AUTH Publish Topic:%s "),mqttTopic_pub);
+
+	File configFile = SPIFFS.open("/system_config.json", FILE_READ);
+				// Create a JSON document and deserialize the system config data from the file to it.			
+				DynamicJsonDocument jsonDoc(1024);
+				DeserializationError error = deserializeJson(jsonDoc, configFile);
+				if (error) {
+					Serial.println(F("Failed to deserialize system config."));
+					configFile.close();
+					return true;
+				}	
+				configFile.close();  	
+				// Update shared attribute on Thingsboard server		
+				char IP[] = "xxx.xxx.xxx.xxx";          // buffer
+				IPAddress ip = WiFi.localIP();
+				String my_ip = ip.toString();
+				// Assign example values to the keys
+				jsonDoc["msgTyp"] = "init";
+				jsonDoc["id"] = device_id_macStr;
+				jsonDoc["fw_ver"] = fw_ver;
+				jsonDoc["ip"] = my_ip.c_str();
+				jsonDoc["mac"] = macStr;
+				jsonDoc["friendly_name"] = structSysConfig.friendly_name;
+				jsonDoc["status"] = "idle";
+				long rssi = WiFi.RSSI();
+                jsonDoc["rssi"] =  rssi;
+				// Serialize the JsonDocument to a string
+				String jsonString;
+				serializeJson(jsonDoc, jsonString);
+				//Serial.println(jsonString.c_str());
+				// Publish the JSON payload to the MQTT topic
+				if ( client.publish(mqttTopic_pub, jsonString.c_str())) {
+					Serial.println(F("Ok"));
+					return false;
+				} else {
+					Serial.println(F("Failed"));
+					return true;
+				} 
+}
 
  void dayBreakConuterReset(){
 	// reset counters when dayBreak
@@ -239,24 +340,14 @@ void tb_live(){
   //int realProductionCountAbsolute = (random(1,5)*10);
   //productionCounter_local = (realProductionCountAbsolute_prev + realProductionCountAbsolute);
   //realProductionCountAbsolute_prev = realProductionCountAbsolute_prev + realProductionCountAbsolute;
-  doc["fw_ver"] = fw_ver;
   doc["msgTyp"] = "update";
   doc["PowerOn"] = powerTime_local;
-  doc["DPowerOn"] = DpowerTime_local;
   doc["ProductionCount"] = productionCounter_local;
   doc["DProductionCount"] = DproductionCounter_local;
   doc["TProductionCount"] = TproductionCounter_local;
   doc["runTime"] = "runTime_local";
-  doc["DrunTime"] = DrunTime_local;
-  unsigned int Dlost_time = DpowerTime_local - DrunTime_local;
-  doc["Dlost_time"] = Dlost_time;
   doc["id"] = device_id_macStr;
   doc["friendly_name"] = structSysConfig.friendly_name;
-  char IP[] = "xxx.xxx.xxx.xxx";          // buffer
-				IPAddress ip = WiFi.localIP();
-				String my_ip = ip.toString();
-  doc["ip"] = my_ip.c_str();
-  doc["mac"] = macStr;
   long rssi = WiFi.RSSI();
   doc["rssi"] =  rssi;
 #ifdef THERMO_OK
@@ -266,9 +357,15 @@ void tb_live(){
 
   // Serialize the JsonDocument to a string
   String jsonString;
-  Serial.print(F("JSON Sending>"));
   serializeJson(doc, jsonString);
-  Serial.println(jsonString.c_str());
+  //sned data when network is available or save
+  if (!oniline_msg_possible) {
+      
+		saveMessageToSPIFFS(jsonString);
+	} 
+	else{
+
+		Serial.println(jsonString.c_str());
   // Publish the JSON payload to the MQTT topic
   char mqttTopic [50];
   strcpy(mqttTopic,mqttBaseTopic);
@@ -278,6 +375,9 @@ void tb_live(){
   } else {
     Serial.println(F("Failed to send JSON payload"));
   }  	
+
+	}
+  
 	
  }
 
@@ -323,4 +423,54 @@ void tb_live(){
 				} 
 				  	
  }
+
+
+
+// Callback to handle incoming MQTT messages
+void callback(char* topic, byte* payload, unsigned int length) {
+
+  String receivedMessage;
+  for (int i = 0; i < length; i++) {
+    receivedMessage += (char)payload[i];
+  }
+  Serial.println(F("Callback>"));
+  Serial.println(receivedMessage);
+  // Parse the payload as JSON
+  StaticJsonDocument<200> jsonDoc;
+  DeserializationError error = deserializeJson(jsonDoc, payload, length);
+
+  if (error) {
+    Serial.println(F("Failed to parse JSON"));
+    return;
+  }
+
+  //dynamically generate auth topic for the device
+	char mqttTopic_sub [100];
+	strcpy(mqttTopic_sub,mqttBaseTopic);
+	strcat(mqttTopic_sub,authResponseTopic);
+	strcat(mqttTopic_sub,"/");
+	strcat(mqttTopic_sub,device_id_macStr);
+  // Handle authentication response
+  if (String(topic) == mqttTopic_sub) {
+    const char* responseDeviceId = jsonDoc["device_id"];
+    const char* responseStatus = jsonDoc["status"];
+
+    // Check if the response is for this device
+    if (responseDeviceId && String(responseDeviceId) == device_id_macStr) {
+      if (responseStatus && String(responseStatus) == "auth_success") {
+		authenticated = true;
+        Serial.println(F("Authentication successful!"));
+        // Proceed with normal operations
+      } else if (responseStatus && String(responseStatus) == "auth_fail") {
+        Serial.println(F("Authentication failed. Taking action."));
+        // Handle failure (e.g., retry, enter a safe state, etc.)
+      } else {
+        Serial.println(F("Unknown response status"));
+      }
+    } else {
+      Serial.println(F("Response not for this device"));
+    }
+  }
+}
+
 

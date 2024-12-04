@@ -139,7 +139,8 @@ void wifi_live() {
 		#ifdef FORCE_BSSID
 		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
 		#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
+		//WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
+		WiFi.begin("DeepNet", "dynamicocean093");
 		#endif
 		
 		while (WiFi.status() != WL_CONNECTED) {
