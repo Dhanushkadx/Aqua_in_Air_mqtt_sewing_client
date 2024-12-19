@@ -11,7 +11,7 @@ volatile bool ledState;
 TimerSW Timer_tb_demon;
 TimerSW Timer_tb_update;
 EventGroupHandle_t EventRTOS_IO_events;
-
+TimerSW Timer_mqtt_reconnect;
 // Initialize underlying client, used to establish a connection
 PubSubClient client(espClient);
 
@@ -34,6 +34,8 @@ void initTimers(){
 	 Timer_tb_update.previousMillis = millis();
 	 Timer_busy.interval = 1000;
 	 Timer_busy.previousMillis = millis();
+	 Timer_mqtt_reconnect.previousMillis = millis();
+	 Timer_mqtt_reconnect.interval =60000;
 }
 
 
@@ -49,6 +51,7 @@ void tb_live(){
 		Serial.println(F("Connecting to MQTT…"));
 		uint16_t port_number = atoi(structSysConfig.server_port);
 		client.setServer(structSysConfig.server_url, port_number);
+		Timer_mqtt_reconnect.previousMillis = millis();
     	while (!client.connected()) {         
 			//clientId += String(WiFi.macAddress());
 			char mqttTopic [50];
@@ -70,7 +73,7 @@ void tb_live(){
 			Serial.println(jsonString.c_str());
 			Serial.printf("The client %s connects to the mqtt broker at %s\n",device_id_macStr,structSysConfig.server_url);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			if (client.connect(device_id_macStr, "", "", mqttTopic, 1, true, jsonString.c_str())) {
+			if (client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str())) {
 				Serial.println(F("connected to server"));
 				digitalWrite(PIN_ONLINE,HIGH);
 				tbConnected = true;
@@ -81,8 +84,18 @@ void tb_live(){
 				Serial.println(client.state());
 				Serial.println(F("reconnect..."));
 				delay(2000);
+				if(Timer_mqtt_reconnect.Timer_run()){
+					Timer_mqtt_reconnect.previousMillis = millis();
+					ESP.restart();
+				}
 				
 			}
+			int state =WiFi.status();
+    	if(state !=WL_CONNECTED)
+        {
+            Serial.println(F("No WiFi to Reconnect MQTT"));
+            return;
+        }
     	}
 
 		
@@ -233,12 +246,23 @@ void tb_live(){
 
  
  
-				// Create a JSON document and deserialize the system config data from the file to it.
+// Create a JSON document and deserialize the system config data from the file to it.
   DynamicJsonDocument doc(512);  // Adjust the size based on your JSON structure
   // Set values in the JSON document
-  //int realProductionCountAbsolute = (random(1,5)*10);
-  //productionCounter_local = (realProductionCountAbsolute_prev + realProductionCountAbsolute);
-  //realProductionCountAbsolute_prev = realProductionCountAbsolute_prev + realProductionCountAbsolute;
+  // check MC state changers for immediate data sending
+		 if (prevMCstate==MC_BUSY)
+		 {
+			 //busy=true;
+			 doc["status"] = "busy";
+		 }
+		 else if(prevMCstate==IDLE){
+			// busy=false;
+			 doc["status"] = "idle";
+		 }	 
+		 else if(prevMCstate==MC_FAULT){
+			 
+			 doc["status"] = "fault";
+		 }
   doc["fw_ver"] = fw_ver;
   doc["msgTyp"] = "update";
   doc["PowerOn"] = powerTime_local;
@@ -262,8 +286,8 @@ void tb_live(){
 #ifdef THERMO_OK
 	doc["temp"] = get_temperatureC();
 #endif
-  ConfigManager :: saveSystemData(structSysData);
-
+	// save data on flash
+	 ConfigManager :: saveSystemData(structSysData);
   // Serialize the JsonDocument to a string
   String jsonString;
   Serial.print(F("JSON Sending>"));

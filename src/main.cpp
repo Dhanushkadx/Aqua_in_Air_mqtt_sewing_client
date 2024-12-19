@@ -13,9 +13,9 @@
 
 #include "statments.h"
 #include "esp_task_wdt.h"
-#ifdef PLC_IOT_BRIDGE
+
 #include "pinsx.h"
-#endif
+
 #include "sensor_scan.h"
 
 #include <WiFi.h>
@@ -26,13 +26,9 @@
 #include <Update.h>
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
-
-#ifdef PLC_IOT_BRIDGE
-
+#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
 #include "pixelx.h"
-
 #endif
-
 
 bool tbLoopDone = false;
 bool SWrestart = false;
@@ -58,6 +54,7 @@ TimerSW Timer_powerOnTimer;
 TimerSW Timer_runTimer;
 TimerSW Timer_acNoice;
 TimerSW Timer_idle_detect;
+
 
 
 //create handle for the mutex. It will be used to reference mutex
@@ -187,7 +184,7 @@ void Task4code(void* pvParameters) {
 }
 void setup() {
 	delay(2000);
-#ifdef PLC_IOT_BRIDGE
+#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
  initPixelBright();
 #endif
 	 Serial.begin(SERIAL_DEBUG_BAUD);
@@ -324,7 +321,7 @@ xTaskCreatePinnedToCore(
 void loop(){
     vTaskDelay(10 / portTICK_RATE_MS);
 	 cleanClients();
-#ifdef PLC_IOT_BRIDGE
+#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
     if(configMode_enable){
       pixel_configEn();
     }

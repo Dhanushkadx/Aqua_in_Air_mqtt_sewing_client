@@ -48,7 +48,7 @@ AsyncWebServer server(HTTP_PORT);
 
 
 void initWebServerTimers(){
-	Timer_WIFIrecon.interval = 300000;
+	Timer_WIFIrecon.interval = 60000;
 	
 }
 
@@ -132,6 +132,7 @@ void wifi_live() {
 	if (WiFi.status() != WL_CONNECTED) {
 		wifiStarted = false;
 		WiFi.disconnect();
+		vTaskDelay(3000 / portTICK_RATE_MS);
 		/*if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
 			Serial.println("STA Failed to configure");
 		}*/
@@ -141,7 +142,7 @@ void wifi_live() {
 		#else
 		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
 		#endif
-		
+		//WiFi.waitForConnectResult();
 		while (WiFi.status() != WL_CONNECTED) {
 			Serial.print(".");
 			vTaskDelay(500 / portTICK_RATE_MS);
