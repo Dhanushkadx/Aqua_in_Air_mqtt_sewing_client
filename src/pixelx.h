@@ -8,8 +8,12 @@
 #include <Adafruit_NeoPixel.h>
 #include "config.h"
 
-#define PIXEL_PIN 13
-#define NUM_LEDS 1
+#if defined(VERO_BOARD) 
+
+#define PIXEL_PIN 0
+#define NUM_LEDS 0
+
+#endif
 
 void rainbow(uint8_t wait);
 uint32_t Wheel(byte WheelPos);

@@ -37,6 +37,7 @@ extern AsyncWebSocket ws;
 extern systemConfigTypedef_struct structSysConfig;
 extern systemDataTypedef_struct structSysData;
 
+uint32_t getUTC_time();
 void initWebServices();
 void cleanClients();
 void initWebSocket();

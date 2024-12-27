@@ -105,6 +105,7 @@ void mqtt_live(){
 		break;	
 	case 3:{
 			Serial.println(F("MQTT Wait for responce"));
+			vTaskDelay(1000 / portTICK_RATE_MS);
 			if(client.connected()){
 #ifndef IOT_PULSE_X
 			digitalWrite(PIN_ONLINE,HIGH);
@@ -133,16 +134,20 @@ void mqtt_live(){
 	case 4:{
 			if(authenticated){
 				Serial.println(F("MQTT AUTH Ok"));
-				if(!processOfflineMessages()){
+				if(!processOfflineMessagesV2()){
 				oniline_msg_possible = true;
 				mqtt_status = 0;
 				}
+				else{
+					oniline_msg_possible = false;
+					mqtt_status = 0;
+					}
 			}
-			if(Timer_auth_request.Timer_run()){
+			else if(Timer_auth_request.Timer_run()){
 				Timer_auth_request.previousMillis = millis();
-				Serial.println(F("MQTT AUTH request sent"));
-				if(!mqtt_auth_request()){
-				}
+				Serial.println(F("MQTT AUTH FAILD"));
+				client.disconnect();
+				mqtt_status = 0;
 			}
 	}
 		break;
@@ -316,40 +321,29 @@ bool mqtt_auth_request(){
  }
  
  void send_data_to_tb(){
- printLocalTime();
+ //printLocalTime();
 
  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));
- unsigned int productionCounter_local = structSysData.productionCounter;
- unsigned int TproductionCounter_local = structSysData.TproductionCounter;
  unsigned int DproductionCounter_local = structSysData.DproductionCounter;
-
- unsigned int powerTime_local = structSysData.powerTime;
- unsigned int TpowerTime_local = structSysData.TpowerTime;
  unsigned int DpowerTime_local = structSysData.DpowerTime;
-
- unsigned int runTime_local = structSysData.runTime;
- unsigned int TrunTime_local = structSysData.TrunTime;
  unsigned int DrunTime_local = structSysData.DrunTime; 
- xSemaphoreGive(xMutex_dataTB);		
-
+ xSemaphoreGive(xMutex_dataTB);	
  
- 
-				// Create a JSON document and deserialize the system config data from the file to it.
-  DynamicJsonDocument doc(512);  // Adjust the size based on your JSON structure
+  DynamicJsonDocument doc(200);  // Adjust the size based on your JSON structure
+  
   // Set values in the JSON document
   //int realProductionCountAbsolute = (random(1,5)*10);
   //productionCounter_local = (realProductionCountAbsolute_prev + realProductionCountAbsolute);
   //realProductionCountAbsolute_prev = realProductionCountAbsolute_prev + realProductionCountAbsolute;
   doc["msgTyp"] = "update";
-  doc["PowerOn"] = powerTime_local;
-  doc["ProductionCount"] = productionCounter_local;
+  doc["pwoT"] = DpowerTime_local;
   doc["DProductionCount"] = DproductionCounter_local;
-  doc["TProductionCount"] = TproductionCounter_local;
-  doc["runTime"] = "runTime_local";
+  doc["runT"] = DrunTime_local;
   doc["id"] = device_id_macStr;
-  doc["friendly_name"] = structSysConfig.friendly_name;
+  //doc["friendly_name"] = structSysConfig.friendly_name;
   long rssi = WiFi.RSSI();
   doc["rssi"] =  rssi;
+  doc["ts"] = getUTC_time();  // Add the UTC timestamp
 #ifdef THERMO_OK
 	doc["temp"] = get_temperatureC();
 #endif
@@ -359,12 +353,10 @@ bool mqtt_auth_request(){
   String jsonString;
   serializeJson(doc, jsonString);
   //sned data when network is available or save
-  if (!oniline_msg_possible) {
-      
-		saveMessageToSPIFFS(jsonString);
+  if (!oniline_msg_possible) {      
+		saveMessageToSPIFFSV3(doc);
 	} 
 	else{
-
 		Serial.println(jsonString.c_str());
   // Publish the JSON payload to the MQTT topic
   char mqttTopic [50];
@@ -374,9 +366,10 @@ bool mqtt_auth_request(){
     Serial.println(F("JSON payload sent successfully"));
   } else {
     Serial.println(F("Failed to send JSON payload"));
+	saveMessageToSPIFFSV3(doc);
   }  	
 
-	}
+}
   
 	
  }

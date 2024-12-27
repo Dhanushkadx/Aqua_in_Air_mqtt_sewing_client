@@ -10,7 +10,8 @@
 
 // Define your configurations based on the use case
 //#define PLC_IOT_BRIDGE  // Comment or Uncomment based on your setup
-#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
+//#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
+#define VERO_BOARD  // Uncomment for IOT Pulse X setup
 
 #ifdef IOT_PULSE_X
     // Specific pin mappings for IOT_PULSE_X
@@ -53,7 +54,7 @@
     #define thermoCLK 25
     #define BIN_BUZZER 4
 
-#else
+#elif defined(VERO_BOARD)
     // Default pin mappings (for the vero board)
     #define PIN_ONLINE 13  // For vero board
     #define PIN_PROGRAM 33

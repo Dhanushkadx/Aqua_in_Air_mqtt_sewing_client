@@ -27,7 +27,7 @@
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
 
-#ifdef PLC_IOT_BRIDGE
+#if defined(PLC_IOT_BRIDGE)||(IOT_PULSE_X) 
 
 #include "pixelx.h"
 
@@ -75,9 +75,6 @@ TaskHandle_t Task2;
 TaskHandle_t Task3;
 TaskHandle_t Task4;
 TaskHandle_t Task5;
-// Define NTP Client to get time
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
 
 //Task1code: TB com loop
 void Task1code( void * pvParameters ){

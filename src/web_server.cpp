@@ -19,7 +19,11 @@
 #include <ArduinoJson.h>
 #include <AsyncTCP.h>
 #include <AsyncElegantOTA.h>
+#include <NTPClient.h>      // NTP Client library
+#include <WiFiUdp.h>        // UDP library for Wi-Fi communication
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org");  // UTC+5:30 (5 hours and 30 minutes offset)
 
 
 int status_wifi;
@@ -48,7 +52,7 @@ AsyncWebServer server(HTTP_PORT);
 
 
 void initWebServerTimers(){
-	Timer_WIFIrecon.interval = 300000;
+	Timer_WIFIrecon.interval = 30000;
 	
 }
 
@@ -126,6 +130,7 @@ void initWiFi_AP() {
 }
 
 void wifi_live() {
+	static uint8_t wifi_retry = 0;
 	// Loop until we're reconnected
 	Timer_WIFIrecon.previousMillis = millis();
 
@@ -140,16 +145,21 @@ void wifi_live() {
 		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
 		#else
 		//WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		WiFi.begin("DeepNet", "dynamicocean093");
+		WiFi.begin("mac", "Aqua@10T");
 		#endif
 		
 		while (WiFi.status() != WL_CONNECTED) {
 			Serial.print(".");
 			vTaskDelay(500 / portTICK_RATE_MS);
 			if (Timer_WIFIrecon.Timer_run()) {
-				Serial.println("WiFi connection timeout, restarting...");
+				Serial.println(F("WiFi connection timeout, re-attempting"));
 				WiFi.disconnect();
-				ESP.restart();
+				wifi_retry++;
+				if(wifi_retry>30){
+					Serial.println(F("WiFi connection timeout, restarting...mcu"));
+					ESP.restart();
+				}
+				vTaskDelay(3000 / portTICK_RATE_MS);
 				return;
 			}
 		}
@@ -160,7 +170,16 @@ void wifi_live() {
 		String my_ip = ip.toString();
 		Serial.print(F("IP: "));
 		Serial.println(my_ip.c_str());
-		initRTC();
+		//initRTC();
+		// Start NTP client
+        timeClient.begin();
+		 timeClient.begin();
+  // Set offset time in seconds to adjust for your timezone, for example:
+  // GMT +1 = 3600
+  // GMT +8 = 28800
+  // GMT -1 = -3600
+  // GMT 0 = 0
+  		timeClient.setTimeOffset(0);
 		wifiStarted = true;
 	}
 	
@@ -173,10 +192,18 @@ void initSPIFFS() {
 		while (1) {
 			delay(100);
 		}
-	}
-	
-	
+	}	
 }
+
+
+uint32_t getUTC_time() {
+    timeClient.update();  // Update the time from NTP server
+
+    // Get the current UTC time in seconds
+    uint32_t currentUTC = timeClient.getEpochTime();  // UTC time in seconds since 1970
+   return currentUTC;
+}
+
 
 // ----------------------------------------------------------------------------
 // Web server initialization
