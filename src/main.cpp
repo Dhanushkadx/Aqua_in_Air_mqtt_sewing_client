@@ -26,10 +26,17 @@
 #include <Update.h>
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
+#include "modbus_com.h"
 
 #if defined(PLC_IOT_BRIDGE)||(IOT_PULSE_X) 
 
 #include "pixelx.h"
+
+#endif
+
+#if defined(IOT_PULSE_X) 
+
+#include "modbuscom.h"
 
 #endif
 
@@ -118,6 +125,9 @@ void Task2code( void * pvParameters ){
    
    fn_power_on();// count power on time
    sensor_scan();// scan inputs    
+#ifdef IOT_PULSE_X
+   Modbusloop();
+#endif
    
   vTaskDelay(10 / portTICK_RATE_MS);
   }
@@ -194,7 +204,9 @@ void setup() {
 #endif
 	 Serial.begin(SERIAL_DEBUG_BAUD);
 	 Serial.println(WiFi.macAddress());
-  
+#ifdef IOT_PULSE_X
+   setupModbus();
+#endif
  
   Timer_powerOnTimer.interval = 1000;
   Timer_runTimer.interval = 1000;  

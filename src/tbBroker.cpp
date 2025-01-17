@@ -98,7 +98,7 @@ void mqtt_live(){
 			Serial.printf_P(PSTR("MQTT will:%s\n"), jsonString.c_str());
 			Serial.printf_P(PSTR("MQTT connecting:%s port:%s \n"), structSysConfig.server_url,structSysConfig.server_port);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str());
+			client.connect(device_id_macStr, "", "", mqttTopic, 1, true, jsonString.c_str());
 			mqtt_status = 3;			
 		
 	}
