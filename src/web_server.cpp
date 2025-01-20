@@ -5,6 +5,7 @@
 #include "web_server.h"
 
 
+
 /*
     Name:       ESP32_websocket.ino
     Created:	11/22/2022 8:06:05 PM
@@ -19,9 +20,10 @@
 #include <ArduinoJson.h>
 #include <AsyncTCP.h>
 #include <AsyncElegantOTA.h>
+//#include <ElegantOTA.h>
 
 
-
+unsigned long ota_progress_millis = 0;
 int status_wifi;
 bool wifiStarted = false;
 TimerSW Timer_WIFIrecon;
@@ -319,8 +321,9 @@ void initWebServer() {
 	server.on("/get", onGetRequest);
 	server.serveStatic("/", SPIFFS, "/");
 	//server.setAuthentication(http_username, systemConfig.installer_pass);
-	AsyncElegantOTA.begin(&server);    // Start ElegantOTA
-	server.begin();
+	 AsyncElegantOTA.begin(&server);    // Start AsyncElegantOTA
+  	server.begin();
+  	Serial.println("HTTP server started");
 	/*server
 	.serveStatic("/", SPIFFS, "/www/")
 	.setDefaultFile("default.html")
@@ -338,5 +341,4 @@ void autoReconnect_loop() {
 		previousMillis = currentMillis;
 	}
 }
-
 
