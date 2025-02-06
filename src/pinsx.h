@@ -10,8 +10,8 @@
 
 // Define your configurations based on the use case
 //#define PLC_IOT_BRIDGE  // Comment or Uncomment based on your setup
-//#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
-#define VERO_BOARD
+#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
+//#define VERO_BOARD
 
 #ifdef IOT_PULSE_X
     // Specific pin mappings for IOT_PULSE_X
@@ -56,6 +56,8 @@
     #define thermoCS 26
     #define thermoCLK 25
     #define BIN_BUZZER 4
+    #define RGB_LED_PIN 13        // GPIO pin where WS2812B is connected
+    #define NUM_LEDS 1       // Only one LED
 
 #elif defined(VERO_BOARD)
     // Default pin mappings (for the vero board)
