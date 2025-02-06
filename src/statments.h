@@ -46,7 +46,7 @@ extern TimerSW Timer_idle_detect;
 extern EventGroupHandle_t EventRTOS_IO_events;
 
 
-#define sensor_pin_count 3
+#define sensor_pin_count 4
 
 
 

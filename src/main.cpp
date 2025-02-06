@@ -126,7 +126,7 @@ void Task2code( void * pvParameters ){
    fn_power_on();// count power on time
    sensor_scan();// scan inputs    
 #ifdef IOT_PULSE_X
-   Modbusloop();
+   //Modbusloop();
 #endif
    
   vTaskDelay(10 / portTICK_RATE_MS);
@@ -199,6 +199,16 @@ void Task4code(void* pvParameters) {
 }
 void setup() {
 	delay(2000);
+
+ GPIO_array[0].GPIOpin = PIN_INPUT1;
+ GPIO_array[1].GPIOpin = PIN_INPUT2;
+ GPIO_array[2].GPIOpin = PIN_INPUT3;
+ GPIO_array[3].GPIOpin = PIN_INPUT4;
+
+ for(uint8_t index=0; index<sensor_pin_count; index++){
+     pinMode(GPIO_array[index].GPIOpin,INPUT_PULLUP);
+    }
+
 #ifdef PLC_IOT_BRIDGE
  initPixelBright();
 #endif
@@ -255,10 +265,6 @@ void setup() {
   xMutex_dataTB = xSemaphoreCreateMutex();
   initWebServices();
 
- GPIO_array[0].GPIOpin = PIN_INPUT1;
- GPIO_array[1].GPIOpin = PIN_INPUT2;
- GPIO_array[2].GPIOpin = PIN_INPUT3;
-// GPIO_array[3].GPIOpin = PIN_INPUT4;
  
  // Production Count
  GPIO_array[0].fn_FALL_EDGE = fn_productionCounter;
@@ -275,11 +281,6 @@ void setup() {
  GPIO_array[2].fn_LOW_CONTINU = fn_downTime_light_blink;
  GPIO_array[2].fn_HIGH_CONTINU = NULL;
  GPIO_array[2].fn_RISE_EDGE = fn_runDownTime_end_notify;
-  
-
-  for(uint8_t index=0; index<sensor_pin_count; index++){
-     pinMode(GPIO_array[index].GPIOpin,INPUT_PULLUP);
-    }
  
   
   

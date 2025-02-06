@@ -173,7 +173,6 @@ void wifi_live() {
 		//initRTC();
 		// Start NTP client
         timeClient.begin();
-		 timeClient.begin();
   // Set offset time in seconds to adjust for your timezone, for example:
   // GMT +1 = 3600
   // GMT +8 = 28800

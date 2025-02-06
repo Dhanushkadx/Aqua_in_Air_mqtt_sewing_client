@@ -36,7 +36,7 @@
     #define thermoCLK 14
     #define BIN_BUZZER 4
     // Define the LED pin and the number of LEDs in the WS2812B strip
-    #define  PIXEL_PIN 23        // GPIO pin where WS2812B is connected
+    #define RGB_LED_PIN 23        // GPIO pin where WS2812B is connected
     #define NUM_LEDS 1       // Only one LED
 
 

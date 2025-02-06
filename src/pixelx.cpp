@@ -1,8 +1,12 @@
 #include "pixelx.h"
 
 
+#if defined(VERO_BOARD)
+#define NUM_LEDS 0
+#define RGB_LED_PIN 0
+#endif
 
-Adafruit_NeoPixel pixels(NUM_LEDS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(NUM_LEDS, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
 
 
 
