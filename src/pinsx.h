@@ -10,19 +10,22 @@
 
 // Define your configurations based on the use case
 //#define PLC_IOT_BRIDGE  // Comment or Uncomment based on your setup
-//#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
-#define VERO_BOARD  // Uncomment for IOT Pulse X setup
+#define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
+//#define VERO_BOARD
 
 #ifdef IOT_PULSE_X
     // Specific pin mappings for IOT_PULSE_X
-    #define RELAY1 22
-    #define RELAY2 19
+    #define RELAY1 13
+    #define RELAY2 27
     #define RELAY3 18
     #define RELAY4 2
-    #define RELAY5 27
-    #define RELAY6 13
+    #define RELAY5 19
+    #define RELAY6 22
+    #define PIN_PROGRAM PIN_INPUT4
+    #define PIN_LED_PROG RELAY2
     #define PIN_DOWNTIME_SWITCH 36
     #define PIN_LED_FAULT RELAY1
+    #define PIN_ONLINE RELAY3
     #define PIN_INPUT1 35  // 19
     #define PIN_INPUT2 34  // 22
     #define PIN_INPUT3 PIN_DOWNTIME_SWITCH
@@ -33,7 +36,7 @@
     #define thermoCLK 14
     #define BIN_BUZZER 4
     // Define the LED pin and the number of LEDs in the WS2812B strip
-    #define RGB_LED_PIN 23        // GPIO pin where WS2812B is connected
+    #define  PIXEL_PIN 23        // GPIO pin where WS2812B is connected
     #define NUM_LEDS 1       // Only one LED
 
 

@@ -28,7 +28,7 @@
 #include "soc/timer_group_reg.h"
 #include "modbus_com.h"
 
-#if defined(PLC_IOT_BRIDGE)||(IOT_PULSE_X) 
+#if defined(PLC_IOT_BRIDGE)|| defined(IOT_PULSE_X) 
 
 #include "pixelx.h"
 
@@ -36,7 +36,7 @@
 
 #if defined(IOT_PULSE_X) 
 
-#include "modbuscom.h"
+#include "modbus_com.h"
 
 #endif
 
