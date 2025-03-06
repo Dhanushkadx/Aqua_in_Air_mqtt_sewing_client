@@ -1,6 +1,6 @@
 
 #include "tbBroker.h"
-char* fw_ver = "1.2";
+char* fw_ver = "1.21";
 
 char* mqttBaseTopic = "nodered/sewing/";
  // Construct the complete topic for this machine
@@ -107,7 +107,7 @@ void tb_live(){
 
  
  void com_loop() {	 
-	  wifi_live();	  
+	  //wifi_live();	  
 	  tb_live();
 	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));	 
 	  bool Current_faulty_alarm_status_local = Current_faulty_alarm_status;

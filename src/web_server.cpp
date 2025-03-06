@@ -132,18 +132,7 @@ void wifi_live() {
 	Timer_WIFIrecon.previousMillis = millis();
 
 	if (WiFi.status() != WL_CONNECTED) {
-		wifiStarted = false;
-		WiFi.disconnect();
-		vTaskDelay(3000 / portTICK_RATE_MS);
-		/*if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-			Serial.println("STA Failed to configure");
-		}*/
-		Serial.printf("Connecting to %s...", structSysConfig.wifissid_sta);
-		#ifdef FORCE_BSSID
-		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		#endif
+		
 		//WiFi.waitForConnectResult();
 		while (WiFi.status() != WL_CONNECTED) {
 			Serial.print(".");
@@ -155,7 +144,21 @@ void wifi_live() {
 				return;
 			}
 		}
-		Serial.printf("\nConnected to %s\n", structSysConfig.wifissid_sta);
+		
+	}
+	
+}
+
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+	Serial.println("Connected to AP successfully!");
+
+  }
+  
+  void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+	Serial.println("WiFi connected");
+	Serial.println("IP address: ");
+	Serial.println(WiFi.localIP());
+	Serial.printf("\nConnected to %s\n", structSysConfig.wifissid_sta);
 		delay(3000);
 		char IP[] = "xxx.xxx.xxx.xxx";          // buffer
 		IPAddress ip = WiFi.localIP();
@@ -164,9 +167,28 @@ void wifi_live() {
 		Serial.println(my_ip.c_str());
 		initRTC();
 		wifiStarted = true;
+  }
+  
+  void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+	Serial.println("Disconnected from WiFi access point");
+	Serial.print("WiFi lost connection. Reason: ");
+	Serial.println(info.wifi_sta_disconnected.reason);
+	Serial.println("Trying to Reconnect");
+	WiFi.reconnect();
+	if(wifiStarted){// Loop until we're reconnected
+		Timer_WIFIrecon.previousMillis = millis();
+		wifiStarted = false;
+		
 	}
 	
-}
+		vTaskDelay(500 / portTICK_RATE_MS);
+			if (Timer_WIFIrecon.Timer_run()) {
+				Serial.println("WiFi connection timeout, restarting...");
+				WiFi.disconnect();
+				ESP.restart();
+				return;
+			}
+  }
 
 void initSPIFFS() {
 	Serial.println(F("init SPIFF"));
