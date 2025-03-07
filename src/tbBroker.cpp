@@ -1,8 +1,9 @@
 
 #include "tbBroker.h"
-char* fw_ver = "1.2";
 
-char* mqttBaseTopic = "nodered/sewing/";
+const char* fw_ver = "4.0";
+
+const char* mqttBaseTopic = "nodered/sewing/";
 // Device-specific topics
 const char* authRequestTopic = "auth/request";
 const char* authResponseTopic = "auth/response";
@@ -61,6 +62,13 @@ void mqtt_live(){
 			if(!client.connected()){
 				authenticated = false; oniline_msg_possible = false;
 			mqtt_status = 1;
+			}
+			else{
+				if(!authenticated){
+					mqtt_status=3;
+					Serial.println(F("MQTT alreday connected"));
+				}
+				
 			}
 		}
 	}
@@ -148,6 +156,7 @@ void mqtt_live(){
 				Serial.println(F("MQTT AUTH FAILD"));
 				client.disconnect();
 				mqtt_status = 0;
+				authenticated = false;
 			}
 	}
 		break;

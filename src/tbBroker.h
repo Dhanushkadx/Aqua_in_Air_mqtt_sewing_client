@@ -22,7 +22,7 @@
 #endif
 
 // Statuses for updating
-extern char* fw_ver;
+extern const char* fw_ver;
 extern bool updateRequestSent;
 extern bool tbConnected; 
 extern byte bssid[];
