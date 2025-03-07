@@ -1,6 +1,6 @@
 
 #include "tbBroker.h"
-char* fw_ver = "1.21";
+char* fw_ver = "1.4";
 
 char* mqttBaseTopic = "nodered/sewing/";
  // Construct the complete topic for this machine
@@ -43,14 +43,10 @@ void tb_live(){
 	if (!client.connected()) {
 		tbConnected = false;
 		digitalWrite(PIN_ONLINE,LOW);
-		Serial.print(F("Connecting to: "));
-		Serial.println(structSysConfig.server_url);
-		//Serial.print(F(" with token "));
-		//Serial.println(structSysConfig.device_token);
 		client.setKeepAlive(60);
-		Serial.println(F("Connecting to MQTT…"));
 		uint16_t port_number = atoi(structSysConfig.server_port);
 		client.setServer(structSysConfig.server_url, port_number);
+		Serial.printf_P(PSTR("MQTT - Connecting to server %s port: %d"),structSysConfig.server_url, port_number);
 		Timer_mqtt_reconnect.previousMillis = millis();
     	while (!client.connected()) {         
 			//clientId += String(WiFi.macAddress());
@@ -68,24 +64,26 @@ void tb_live(){
 			doc["mac"] = macStr;
 			doc["status"] = "offline";
 			String jsonString;
-			Serial.print(F("JSON Sending>"));
+			
 			serializeJson(doc, jsonString);
-			Serial.println(jsonString.c_str());
-			Serial.printf("The client %s connects to the mqtt broker at %s\n",device_id_macStr,structSysConfig.server_url);
+			Serial.printf_P(PSTR("MQTT - Will message: %s \n"), jsonString.c_str());
+			Serial.printf_P(PSTR("MQTT - Client ID: %s\n"),device_id_macStr);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
 			if (client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str())) {
-				Serial.println(F("connected to server"));
+				Serial.println(F("MQTT - connected"));
 				digitalWrite(PIN_ONLINE,HIGH);
 				tbConnected = true;
 				send_metaData_json();
 				
 			} else {
-				Serial.print(F("failed with state  "));
+				Serial.print(F("MQTT - failed with state  "));
 				Serial.println(client.state());
 				Serial.println(F("reconnect..."));
 				delay(2000);
 				if(Timer_mqtt_reconnect.Timer_run()){
 					Timer_mqtt_reconnect.previousMillis = millis();
+					// save data on flash
+	 				ConfigManager :: saveSystemData(structSysData);
 					ESP.restart();
 				}
 				
@@ -93,7 +91,7 @@ void tb_live(){
 			int state =WiFi.status();
     	if(state !=WL_CONNECTED)
         {
-            Serial.println(F("No WiFi to Reconnect MQTT"));
+            Serial.println(F("MQTT - No WiFi to Reconnect MQTT"));
             return;
         }
     	}

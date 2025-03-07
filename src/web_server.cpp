@@ -94,7 +94,9 @@ void initWiFi_STA(){
 		Serial.print(".");
 		delay(500);
 	}
-	Serial.printf(" %s\n", WiFi.localIP().toString().c_str());
+	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 }
 
 void initWiFi_AP() {
@@ -150,30 +152,25 @@ void wifi_live() {
 }
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
-	Serial.println("Connected to AP successfully!");
+	Serial.printf("WiFi - Connected to %s\n", structSysConfig.wifissid_sta);
 
   }
   
   void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
-	Serial.println("WiFi connected");
-	Serial.println("IP address: ");
-	Serial.println(WiFi.localIP());
-	Serial.printf("\nConnected to %s\n", structSysConfig.wifissid_sta);
-		delay(3000);
-		char IP[] = "xxx.xxx.xxx.xxx";          // buffer
-		IPAddress ip = WiFi.localIP();
-		String my_ip = ip.toString();
-		Serial.print(F("IP: "));
-		Serial.println(my_ip.c_str());
-		initRTC();
-		wifiStarted = true;
+	
+	Serial.println(F("IP address: "));
+	Serial.println(WiFi.localIP());	
+	char IP[] = "xxx.xxx.xxx.xxx";          // buffer
+	IPAddress ip = WiFi.localIP();
+	String my_ip = ip.toString();
+	initRTC();
+	wifiStarted = true;
   }
   
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
-	Serial.println("Disconnected from WiFi access point");
-	Serial.print("WiFi lost connection. Reason: ");
+	Serial.print(F("WiFi lost connection. Reason: "));
 	Serial.println(info.wifi_sta_disconnected.reason);
-	Serial.println("Trying to Reconnect");
+	Serial.println(F("Trying to Reconnect"));
 	WiFi.reconnect();
 	if(wifiStarted){// Loop until we're reconnected
 		Timer_WIFIrecon.previousMillis = millis();
@@ -181,13 +178,14 @@ void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 		
 	}
 	
-		vTaskDelay(500 / portTICK_RATE_MS);
-			if (Timer_WIFIrecon.Timer_run()) {
-				Serial.println("WiFi connection timeout, restarting...");
-				WiFi.disconnect();
-				ESP.restart();
-				return;
-			}
+	vTaskDelay(500 / portTICK_RATE_MS);
+	if (Timer_WIFIrecon.Timer_run()) {
+		Serial.println(F("WiFi connection timeout, restarting..."));
+		ConfigManager :: saveSystemData(structSysData);
+		WiFi.disconnect();
+		ESP.restart();
+		return;
+	}
   }
 
 void initSPIFFS() {
