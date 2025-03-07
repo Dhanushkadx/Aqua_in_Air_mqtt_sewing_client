@@ -232,6 +232,10 @@ void setup() {
   #endif
   
   pinMode(PIN_LED_FAULT,OUTPUT);
+
+  WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   
 	initSPIFFS();	
  // ConfigManager::writeDefaultSystemConfig();

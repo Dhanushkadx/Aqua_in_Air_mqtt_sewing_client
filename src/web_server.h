@@ -50,6 +50,9 @@ void onRootRequest(AsyncWebServerRequest *request);
 void onGetRequest(AsyncWebServerRequest *request);
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
 
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);  
+void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
 #endif
 

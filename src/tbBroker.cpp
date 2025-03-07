@@ -168,7 +168,7 @@ void mqtt_live(){
 
 void live_loop(){
 	 mqtt_live();
-	 wifi_live();
+	 //wifi_live(); used wifi event lib
 	 client.loop(); 
 	
 }
