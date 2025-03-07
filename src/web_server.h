@@ -10,7 +10,7 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-
+#include "ConfigManager.h"
 
 #include <ArduinoJson.h>
 #include "TimerSW.h"
@@ -48,6 +48,10 @@ void initWebServerTimers();
 void onRootRequest(AsyncWebServerRequest *request);
 void onGetRequest(AsyncWebServerRequest *request);
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);  
+void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
 #endif
 

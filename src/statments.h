@@ -8,7 +8,7 @@
 
 #ifndef STATMENTS_H_
 #define STATMENTS_H_
-
+//
 //#define FORCE_BSSID
 //#define THERMO_OK
 #include "typex.h"

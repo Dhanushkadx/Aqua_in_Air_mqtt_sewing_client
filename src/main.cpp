@@ -203,6 +203,7 @@ void setup() {
   pinMode(PIN_PROGRAM,INPUT_PULLUP);
   pinMode(PIN_LED_PROG,OUTPUT);
   pinMode(PIN_LED_FAULT,OUTPUT);
+
   
 	initSPIFFS();	
  // ConfigManager::writeDefaultSystemConfig();
