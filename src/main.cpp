@@ -218,11 +218,7 @@ void setup() {
   else{
 	  configMode_enable = false;
 	  ConfigManager::loadSystemConfig(structSysConfig);
-	  #ifdef FORCE_BSSID
-		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		#endif
+	  initWiFi_STA();
   }
   uint8_t mac[6];
   WiFi.macAddress(mac);

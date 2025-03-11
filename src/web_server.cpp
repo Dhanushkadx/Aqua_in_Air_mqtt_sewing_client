@@ -21,6 +21,8 @@
 #include <AsyncTCP.h>
 #include <AsyncElegantOTA.h>
 //#include <ElegantOTA.h>
+//#include <NTPClient.h>      // NTP Client library
+//#include <WiFiUdp.h>  
 
 
 unsigned long ota_progress_millis = 0;
@@ -80,23 +82,19 @@ void initWebSocket() {
 
 void initWiFi_STA(){
 	WiFi.mode(WIFI_STA);
+	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+	#ifdef FORCE_BSSID
 	// Configures static IP address
 	if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
 		Serial.println(F("STA Failed to configure"));
 	}
-	#ifdef FORCE_BSSID
 		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
+	#else
 		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		#endif
-	Serial.printf("Trying to connect [%s] ", WiFi.macAddress().c_str());
-	while (WiFi.status() != WL_CONNECTED) {
-		Serial.print(".");
-		delay(500);
-	}
-	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
-	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+	#endif
+	Serial.printf_P(PSTR("Connecting to [%s] \n"), structSysConfig.wifissid_sta); 
 }
 
 void initWiFi_AP() {
@@ -130,23 +128,56 @@ void initWiFi_AP() {
 }
 
 void wifi_live() {
+	static uint8_t wifi_retry = 0;
 	// Loop until we're reconnected
 	Timer_WIFIrecon.previousMillis = millis();
 
 	if (WiFi.status() != WL_CONNECTED) {
+		wifiStarted = false;
+		WiFi.disconnect();
+		/*if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
+			Serial.println("STA Failed to configure");
+		}*/
+		Serial.printf("Connecting to %s...", structSysConfig.wifissid_sta);
+		#ifdef FORCE_BSSID
+		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
+		#else
+		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
+		//WiFi.begin("mac", "Aqua@10T");
+		#endif
 		
-		//WiFi.waitForConnectResult();
 		while (WiFi.status() != WL_CONNECTED) {
 			Serial.print(".");
 			vTaskDelay(500 / portTICK_RATE_MS);
 			if (Timer_WIFIrecon.Timer_run()) {
-				Serial.println("WiFi connection timeout, restarting...");
+				Serial.println(F("WiFi connection timeout, re-attempting"));
 				WiFi.disconnect();
-				ESP.restart();
+				wifi_retry++;
+				if(wifi_retry>30){
+					Serial.println(F("WiFi connection timeout, restarting...mcu"));
+					ESP.restart();
+				}
+				vTaskDelay(3000 / portTICK_RATE_MS);
 				return;
 			}
 		}
-		
+		Serial.printf("\nConnected to %s\n", structSysConfig.wifissid_sta);
+		delay(3000);
+		char IP[] = "xxx.xxx.xxx.xxx";          // buffer
+		IPAddress ip = WiFi.localIP();
+		String my_ip = ip.toString();
+		Serial.print(F("IP: "));
+		Serial.println(my_ip.c_str());
+		//initRTC();
+		// Start NTP client
+        //timeClient.begin();
+  // Set offset time in seconds to adjust for your timezone, for example:
+  // GMT +1 = 3600
+  // GMT +8 = 28800
+  // GMT -1 = -3600
+  // GMT 0 = 0
+  		//timeClient.setTimeOffset(0);
+		wifiStarted = true;
 	}
 	
 }

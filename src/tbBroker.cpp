@@ -1,6 +1,6 @@
 
 #include "tbBroker.h"
-char* fw_ver = "1.4";
+char* fw_ver = "1.50";
 
 char* mqttBaseTopic = "nodered/sewing/";
  // Construct the complete topic for this machine
@@ -94,12 +94,8 @@ void tb_live(){
             Serial.println(F("MQTT - No WiFi to Reconnect MQTT"));
             return;
         }
-    	}
-
-		
-				
-			}
-	
+    	}				
+			}	
 }
 
 
