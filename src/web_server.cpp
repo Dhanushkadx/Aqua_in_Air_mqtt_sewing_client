@@ -88,15 +88,14 @@ void initWiFi_STA(){
 	}
 	#ifdef FORCE_BSSID
 		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
+	#else
 		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		#endif
+	#endif
 	Serial.printf("Trying to connect [%s] ", WiFi.macAddress().c_str());
-	while (WiFi.status() != WL_CONNECTED) {
-		Serial.print(".");
-		delay(500);
-	}
-	Serial.printf(" %s\n", WiFi.localIP().toString().c_str());
+	
+	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 }
 
 void initWiFi_AP() {

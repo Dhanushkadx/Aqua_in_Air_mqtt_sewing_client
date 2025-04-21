@@ -40,11 +40,11 @@
 
 #endif
 
-
+void powwr_loop();
 bool tbLoopDone = false;
 bool SWrestart = false;
 bool configMode_enable = false;
-
+volatile bool powerLost = false;
 String lastDate;
 // Variables to save date and time
 String formattedDate;
@@ -122,7 +122,7 @@ void Task2code( void * pvParameters ){
     xSemaphoreGive(xMutex); // release mutex   
     }
    #endif
-   
+   powwr_loop();
    fn_power_on();// count power on time
    sensor_scan();// scan inputs    
 #ifdef IOT_PULSE_X
@@ -197,8 +197,32 @@ void Task4code(void* pvParameters) {
 		}
     }
 }
+
+
+void IRAM_ATTR onPowerLoss() {
+  powerLost = true;
+}
+
+
+
+void powwr_loop() {
+  if (powerLost) {
+    Serial.println("Power loss detected!");
+
+    // Save critical data
+    ConfigManager :: saveSystemData(structSysData);
+
+    // Optional: shutdown or sleep
+    ESP.deepSleep(0); // or just halt
+  }
+
+  // Normal operation code...
+}
+
 void setup() {
 	delay(2000);
+  pinMode(POWER_LOSS_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(POWER_LOSS_PIN), onPowerLoss, FALLING); // or RISING based on logic
 
  GPIO_array[0].GPIOpin = PIN_INPUT1;
  GPIO_array[1].GPIOpin = PIN_INPUT2;
@@ -232,10 +256,6 @@ void setup() {
   #endif
   
   pinMode(PIN_LED_FAULT,OUTPUT);
-
-  WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-  WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   
 	initSPIFFS();	
  // ConfigManager::writeDefaultSystemConfig();
@@ -250,11 +270,7 @@ void setup() {
   else{
 	  configMode_enable = false;
 	  ConfigManager::loadSystemConfig(structSysConfig);
-	  #ifdef FORCE_BSSID
-		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		#endif
+    initWiFi_STA();
   }
   uint8_t mac[6];
   WiFi.macAddress(mac);
@@ -345,7 +361,7 @@ xTaskCreatePinnedToCore(
 void loop(){
     vTaskDelay(10 / portTICK_RATE_MS);
 	 cleanClients();
-#ifdef PLC_IOT_BRIDGE
+   #if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
     if(configMode_enable){
       pixel_configEn();
     }

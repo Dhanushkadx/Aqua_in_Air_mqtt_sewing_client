@@ -43,6 +43,7 @@ void cleanClients();
 void initWebSocket();
 void initWebServer();
 void initWiFi_AP();
+void initWiFi_STA();
 void wifi_live();
 void initSPIFFS();
 void initWebServerTimers();

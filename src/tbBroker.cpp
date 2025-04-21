@@ -74,16 +74,16 @@ void mqtt_live(){
 	}
 		break;
 	case 1:{
-		oniline_msg_possible = false;
-		tbConnected = false;
+			oniline_msg_possible = false;
+			tbConnected = false;
 #ifndef IOT_PULSE_X
-		digitalWrite(PIN_ONLINE,LOW);
+			digitalWrite(PIN_ONLINE,LOW);
 #endif
-		client.setKeepAlive(60);
-		uint16_t port_number = atoi(structSysConfig.server_port);
-		client.setServer(structSysConfig.server_url, port_number);
-		client.setCallback(callback);			
-		mqtt_status = 2;
+			client.setKeepAlive(60);
+			uint16_t port_number = atoi(structSysConfig.server_port);
+			client.setServer(structSysConfig.server_url, port_number);
+			client.setCallback(callback);			
+			mqtt_status = 2;
 		
 	}
 		break;
@@ -106,7 +106,7 @@ void mqtt_live(){
 			Serial.printf_P(PSTR("MQTT will:%s\n"), jsonString.c_str());
 			Serial.printf_P(PSTR("MQTT connecting:%s port:%s \n"), structSysConfig.server_url,structSysConfig.server_port);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			client.connect(device_id_macStr, "", "", mqttTopic, 1, true, jsonString.c_str());
+			client.connect(device_id_macStr, "dhanushkadx", "10153", mqttTopic, 1, true, jsonString.c_str());
 			mqtt_status = 3;			
 		
 	}
@@ -114,7 +114,10 @@ void mqtt_live(){
 	case 3:{
 			Serial.println(F("MQTT Wait for responce"));
 			vTaskDelay(1000 / portTICK_RATE_MS);
-			if(client.connected()){
+			if(!client.connected()){
+				Serial.println(F("MQTT connected faild"));
+			}
+			else{
 #ifndef IOT_PULSE_X
 			digitalWrite(PIN_ONLINE,HIGH);
 #endif
@@ -134,7 +137,7 @@ void mqtt_live(){
 			mqtt_status = 4;
 			}
 			if(Timer_mqtt_server_response.Timer_run()){
-				mqtt_status = 2;
+				mqtt_status = 0;
 			}
 			
 	}

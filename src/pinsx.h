@@ -14,6 +14,7 @@
 //#define VERO_BOARD
 
 #ifdef IOT_PULSE_X
+#define POWER_LOSS_PIN  21  // GPIO pin connected to power detection
     // Specific pin mappings for IOT_PULSE_X
     #define RELAY1 13
     #define RELAY2 27
