@@ -67,8 +67,7 @@ void mqtt_live(){
 				if(!authenticated){
 					mqtt_status=3;
 					Serial.println(F("MQTT alreday connected"));
-				}
-				
+				}				
 			}
 		}
 	}
@@ -106,23 +105,19 @@ void mqtt_live(){
 			Serial.printf_P(PSTR("MQTT will:%s\n"), jsonString.c_str());
 			Serial.printf_P(PSTR("MQTT connecting:%s port:%s \n"), structSysConfig.server_url,structSysConfig.server_port);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			client.connect(device_id_macStr, "dhanushkadx", "10153", mqttTopic, 1, true, jsonString.c_str());
+			client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str());
 			mqtt_status = 3;			
-		
 	}
 		break;	
 	case 3:{
 			Serial.println(F("MQTT Wait for responce"));
 			vTaskDelay(1000 / portTICK_RATE_MS);
-			if(!client.connected()){
-				Serial.println(F("MQTT connected faild"));
-			}
-			else{
+			if(client.connected()){
+				Serial.println(F("MQTT connected"));			
 #ifndef IOT_PULSE_X
 			digitalWrite(PIN_ONLINE,HIGH);
 #endif
-			tbConnected = true;
-				 // Subscribe to the authentication response topic
+		 // Subscribe to the authentication response topic
 		 //dynamically generate auth topic for the device
 			char mqttTopic_sub [100];
 			strcpy(mqttTopic_sub,mqttBaseTopic);
@@ -147,6 +142,7 @@ void mqtt_live(){
 				Serial.println(F("MQTT AUTH Ok"));
 				if(!processOfflineMessagesV2()){
 				oniline_msg_possible = true;
+				tbConnected = true;
 				mqtt_status = 0;
 				}
 				else{

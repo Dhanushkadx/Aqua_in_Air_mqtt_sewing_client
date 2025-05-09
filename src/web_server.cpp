@@ -80,22 +80,22 @@ void initWebSocket() {
 }
 
 
+
 void initWiFi_STA(){
 	WiFi.mode(WIFI_STA);
+	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+	#ifdef FORCE_BSSID
 	// Configures static IP address
 	if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
 		Serial.println(F("STA Failed to configure"));
 	}
-	#ifdef FORCE_BSSID
 		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
 	#else
 		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
 	#endif
-	Serial.printf("Trying to connect [%s] ", WiFi.macAddress().c_str());
-	
-	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-  	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
-  	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+	Serial.printf_P(PSTR("Connecting to [%s] \n"), structSysConfig.wifissid_sta); 
 }
 
 void initWiFi_AP() {

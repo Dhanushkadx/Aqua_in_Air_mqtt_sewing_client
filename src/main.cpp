@@ -207,11 +207,11 @@ void IRAM_ATTR onPowerLoss() {
 
 void powwr_loop() {
   if (powerLost) {
-    Serial.println("Power loss detected!");
+    Serial.println(F("Power loss detected!"));
 
     // Save critical data
     ConfigManager :: saveSystemData(structSysData);
-
+    powerLost = false;
     // Optional: shutdown or sleep
     ESP.deepSleep(0); // or just halt
   }
