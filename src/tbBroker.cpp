@@ -40,6 +40,12 @@ void initTimers(){
 
 
 void tb_live(){
+	int state =WiFi.status();
+    	if(state !=WL_CONNECTED)
+        {
+            Serial.println(F("MQTT - No WiFi to Reconnect MQTT"));
+            return;
+        }
 	if (!client.connected()) {
 		tbConnected = false;
 		digitalWrite(PIN_ONLINE,LOW);
@@ -88,12 +94,7 @@ void tb_live(){
 				}
 				
 			}
-			int state =WiFi.status();
-    	if(state !=WL_CONNECTED)
-        {
-            Serial.println(F("MQTT - No WiFi to Reconnect MQTT"));
-            return;
-        }
+		
     	}				
 			}	
 }
