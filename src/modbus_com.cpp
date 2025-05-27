@@ -29,20 +29,20 @@ void setupModbus() {
   //and the second parameter is SERIAL_8E1, 
   //which specifies the data format (8 data bits, even parity, and 1 stop bit).
   //to set these two parameter, please read your sensor datasheet first
-  Serial.begin(115200);
+  //Serial.begin(115200);
   
-   Serial2.begin(9600, SERIAL_8N1, MODBUS_RX_PIN, MODBUS_TX_PIN);
-  Serial2.setTimeout(1000);
+   Serial1.begin(9600, SERIAL_8N1, MODBUS_RX_PIN, MODBUS_TX_PIN);
+  Serial1.setTimeout(1000);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  Serial1.print("Hi");
+  //Serial1.print("Hi");
 
   pinMode(MODBUS_DIR_PIN, OUTPUT);
   digitalWrite(MODBUS_DIR_PIN, LOW);
 
   //modbus device slave ID 14
-  node.begin(0x01, Serial2);
+  node.begin(0x01, Serial1);
 
 //  callbacks allow us to configure the RS485 transceiver correctly
    node.preTransmission(modbusPreTransmission);

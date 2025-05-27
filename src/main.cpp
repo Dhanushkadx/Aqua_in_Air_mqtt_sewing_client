@@ -17,7 +17,7 @@
 #include "pinsx.h"
 #endif
 #include "sensor_scan.h"
-
+#include "universalEventx.h"
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
@@ -27,6 +27,7 @@
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
 #include "modbus_com.h"
+
 
 #if defined(PLC_IOT_BRIDGE)|| defined(IOT_PULSE_X) 
 
@@ -41,6 +42,7 @@
 #endif
 
 void powwr_loop();
+void serialEventRunx();
 bool tbLoopDone = false;
 bool SWrestart = false;
 bool configMode_enable = false;
@@ -65,7 +67,8 @@ TimerSW Timer_powerOnTimer;
 TimerSW Timer_runTimer;
 TimerSW Timer_acNoice;
 TimerSW Timer_idle_detect;
-
+String inputString = "";         // a string to hold incoming data
+boolean stringComplete_at_serial0 = false;  // whether the string is complete
 
 //create handle for the mutex. It will be used to reference mutex
 SemaphoreHandle_t  xMutex_dataTB;
@@ -82,6 +85,7 @@ TaskHandle_t Task2;
 TaskHandle_t Task3;
 TaskHandle_t Task4;
 TaskHandle_t Task5;
+TaskHandle_t Task6;
 
 //Task1code: TB com loop
 void Task1code( void * pvParameters ){
@@ -198,6 +202,18 @@ void Task4code(void* pvParameters) {
     }
 }
 
+void Task6code(void* pvParameters){
+  while(1){
+    vTaskDelay(1 / portTICK_RATE_MS);
+    serialEventRunx();
+    if(stringComplete_at_serial0){
+      universal_event_hadler(inputString.c_str());
+      stringComplete_at_serial0 = false;
+      inputString = "";
+    }
+    }
+  
+}
 
 void IRAM_ATTR onPowerLoss() {
   powerLost = true;
@@ -237,6 +253,7 @@ void setup() {
  initPixelBright();
 #endif
 	 Serial.begin(SERIAL_DEBUG_BAUD);
+   Serial2.begin(115200, SERIAL_8N1, 33, 33);
 	 Serial.println(WiFi.macAddress());
 #ifdef IOT_PULSE_X
    setupModbus();
@@ -260,6 +277,7 @@ void setup() {
 	initSPIFFS();	
  // ConfigManager::writeDefaultSystemConfig();
 //	ConfigManager::writeDefaultSystemData();
+WiFi.setSleep(false);
   if (!digitalRead(PIN_PROGRAM))
   {
 	 //ConfigManager :: writeDefaultSystemConfig();
@@ -289,7 +307,7 @@ void setup() {
  // Production Count
  GPIO_array[0].fn_FALL_EDGE = fn_productionCounter;
  GPIO_array[0].fn_LOW_CONTINU = NULL;
- GPIO_array[0].fn_HIGH_CONTINU = fn_production_idle_detect;
+ GPIO_array[0].fn_HIGH_CONTINU = NULL;//fn_production_idle_detect;
  GPIO_array[0].fn_RISE_EDGE = fn_productionCounter_idle_detect_timer_reset;
  // Run Timer
  GPIO_array[1].fn_FALL_EDGE = NULL; //fn_runTime_count_reset;
@@ -297,10 +315,10 @@ void setup() {
  GPIO_array[1].fn_HIGH_CONTINU = NULL;//fn_runTime_idle_detect;
  GPIO_array[1].fn_RISE_EDGE = NULL;//fn_runTime_idle_detect_timer_reset;
  // Fault detect
- GPIO_array[2].fn_FALL_EDGE = fn_runDownTime_start_notify;
+ GPIO_array[2].fn_FALL_EDGE = NULL; //fn_runDownTime_start_notify;
  GPIO_array[2].fn_LOW_CONTINU = fn_downTime_light_blink;
  GPIO_array[2].fn_HIGH_CONTINU = NULL;
- GPIO_array[2].fn_RISE_EDGE = fn_runDownTime_end_notify;
+ GPIO_array[2].fn_RISE_EDGE = NULL; //fn_runDownTime_end_notify;
  
   
   
@@ -354,7 +372,17 @@ xTaskCreatePinnedToCore(
     1,           /* priority of the task */
     &Task5,      /* Task handle to keep track of created task */
     0);          /* pin task to core 1 */
+
+    xTaskCreatePinnedToCore(
+      Task6code,   /* Task function. */
+      "Task6",     /* name of task. */
+      4000,       /* Stack size of task */
+      NULL,        /* parameter of the task */
+      1,           /* priority of the task */
+      &Task6,      /* Task handle to keep track of created task */
+      1);          /* pin task to core 1 */
 }
+
 
 
 
@@ -381,6 +409,28 @@ void loop(){
     }
    
 #endif 
+}
+
+void serialEventRunx() {
+	
+	while (Serial2.available()) {
+		// get the new byte:
+		char inChar = (char)Serial2.read();
+		// add it to the inputString:
+		if (inChar != '\n')
+		inputString += inChar;
+		// if the incoming character is a newline, set a flag
+		// so the main loop can do something about it:
+		if (inChar == '\n') {
+      //inputString.trim();
+      inputString.replace("\r", "");  // Remove all carriage returns
+			stringComplete_at_serial0 = true;
+			//update invoker
+			//invoker_rec();			
+		}
+	}
+	
+	
 }
 
 

@@ -48,6 +48,7 @@ typedef struct systemData{
 	unsigned int runTime=0;
 	unsigned int TrunTime=0;
 	unsigned int DrunTime=0;
+	int length = 0;
 	}systemDataTypedef_struct;
 
 typedef enum {MC_BUSY,IDLE,MC_FAULT,UNK}eMC_state;

@@ -175,9 +175,7 @@ void live_loop(){
  void com_loop() {	 
 	 // wifi_live();	  
 	  //tb_live();
-	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));	
-
-
+	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));
 	  bool Current_faulty_alarm_status_local = Current_faulty_alarm_status;
 	  eMC_state curruntMCstate_local = curruntMCstate;
 	  bool actRun_local = actRun;	  
@@ -334,7 +332,8 @@ bool mqtt_auth_request(){
  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));
  unsigned int DproductionCounter_local = structSysData.DproductionCounter;
  unsigned int DpowerTime_local = structSysData.DpowerTime;
- unsigned int DrunTime_local = structSysData.DrunTime; 
+ unsigned int DrunTime_local = structSysData.DrunTime;
+ int length_local = structSysData.length; 
  xSemaphoreGive(xMutex_dataTB);	
  
   DynamicJsonDocument doc(200);  // Adjust the size based on your JSON structure
@@ -346,6 +345,7 @@ bool mqtt_auth_request(){
   doc["msgTyp"] = "update";
   doc["pwoT"] = DpowerTime_local;
   doc["DProductionCount"] = DproductionCounter_local;
+  doc["length"] = length_local;
   doc["runT"] = DrunTime_local;
   doc["id"] = device_id_macStr;
   //doc["friendly_name"] = structSysConfig.friendly_name;
@@ -365,7 +365,7 @@ bool mqtt_auth_request(){
 		saveMessageToSPIFFSV3(doc);
 	} 
 	else{
-		Serial.println(jsonString.c_str());
+  Serial.println(jsonString.c_str());
   // Publish the JSON payload to the MQTT topic
   char mqttTopic [50];
   strcpy(mqttTopic,mqttBaseTopic);
