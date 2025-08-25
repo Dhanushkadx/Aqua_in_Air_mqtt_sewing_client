@@ -127,60 +127,7 @@ void initWiFi_AP() {
 	
 }
 
-void wifi_live() {
-	static uint8_t wifi_retry = 0;
-	// Loop until we're reconnected
-	Timer_WIFIrecon.previousMillis = millis();
 
-	if (WiFi.status() != WL_CONNECTED) {
-		wifiStarted = false;
-		WiFi.disconnect();
-		/*if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-			Serial.println("STA Failed to configure");
-		}*/
-		Serial.printf("Connecting to %s...", structSysConfig.wifissid_sta);
-		#ifdef FORCE_BSSID
-		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-		#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-		//WiFi.begin("mac", "Aqua@10T");
-		#endif
-		
-		while (WiFi.status() != WL_CONNECTED) {
-			Serial.print(".");
-			vTaskDelay(500 / portTICK_RATE_MS);
-			if (Timer_WIFIrecon.Timer_run()) {
-				Serial.println(F("WiFi connection timeout, re-attempting"));
-				WiFi.disconnect();
-				wifi_retry++;
-				if(wifi_retry>30){
-					Serial.println(F("WiFi connection timeout, restarting...mcu"));
-					ESP.restart();
-				}
-				vTaskDelay(3000 / portTICK_RATE_MS);
-				return;
-			}
-		}
-		Serial.printf("\nConnected to %s\n", structSysConfig.wifissid_sta);
-		delay(3000);
-		char IP[] = "xxx.xxx.xxx.xxx";          // buffer
-		IPAddress ip = WiFi.localIP();
-		String my_ip = ip.toString();
-		Serial.print(F("IP: "));
-		Serial.println(my_ip.c_str());
-		//initRTC();
-		// Start NTP client
-        //timeClient.begin();
-  // Set offset time in seconds to adjust for your timezone, for example:
-  // GMT +1 = 3600
-  // GMT +8 = 28800
-  // GMT -1 = -3600
-  // GMT 0 = 0
-  		//timeClient.setTimeOffset(0);
-		wifiStarted = true;
-	}
-	
-}
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 	Serial.printf("WiFi - Connected to %s\n", structSysConfig.wifissid_sta);
@@ -372,7 +319,7 @@ void initWebServer() {
 	server.on("/get", onGetRequest);
 	server.serveStatic("/", SPIFFS, "/");
 	//server.setAuthentication(http_username, systemConfig.installer_pass);
-	 AsyncElegantOTA.begin(&server);    // Start AsyncElegantOTA
+	AsyncElegantOTA.begin(&server);    // Start AsyncElegantOTA
   	server.begin();
   	Serial.println("HTTP server started");
 	/*server
@@ -381,15 +328,5 @@ void initWebServer() {
 	.setAuthentication("user", "pass");*/
 }
 
-void autoReconnect_loop() {
-	unsigned long currentMillis = millis();
-	// if WiFi is down, try reconnecting every CHECK_WIFI_TIME seconds
-	if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
-		Serial.print(millis());
-		Serial.println("Reconnecting to WiFi...");
-		WiFi.disconnect();
-		WiFi.reconnect();
-		previousMillis = currentMillis;
-	}
-}
+
 
