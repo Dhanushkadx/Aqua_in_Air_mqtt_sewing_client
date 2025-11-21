@@ -44,6 +44,7 @@ void tb_live(){
     	if(state !=WL_CONNECTED)
         {
             Serial.println(F("MQTT - No WiFi to Reconnect MQTT"));
+			vTaskDelay(5000 / portTICK_RATE_MS);
             return;
         }
 	if (!client.connected()) {
@@ -102,7 +103,7 @@ void tb_live(){
 
  
  void com_loop() {	 
-	  //wifi_live();	  
+	 
 	  tb_live();
 	  while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));	 
 	  bool Current_faulty_alarm_status_local = Current_faulty_alarm_status;
@@ -132,6 +133,7 @@ void tb_live(){
 	  }	 
 
 	  // immideat changig data send
+	  
 	 DynamicJsonDocument doc(512);  // Adjust the size based on your JSON structure	
 	 doc["msgTyp"] = "realTm";
 	 doc["id"] = device_id_macStr;
@@ -200,7 +202,7 @@ void tb_live(){
 
  void dayBreakConuterReset(){
 	// reset counters when dayBreak
-	 if(wifiStarted){
+	 if(wifiIPgot){
 		int today;
 		getDate(&today);
 	    		Serial.print(F("today is "));

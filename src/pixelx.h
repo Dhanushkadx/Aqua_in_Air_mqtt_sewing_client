@@ -15,5 +15,6 @@ void initPixelBright();
 void pixel_noWifi();
 void pixel_server_unreacheble();
 void pixel_configEn();
+void pixel_no_ip();
 
 #endif

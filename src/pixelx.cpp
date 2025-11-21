@@ -57,6 +57,15 @@ void pixel_server_unreacheble(){
     delay(250);
 }
 
+void pixel_no_ip(){
+    pixels.setPixelColor(0 ,200,255,0);
+    pixels.show();
+    delay(250);
+    pixels.clear();
+    pixels.show();
+    delay(250);
+}
+
 void pixel_configEn(){
     pixels.setPixelColor(0 ,255,0,255);
     pixels.show();

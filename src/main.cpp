@@ -5,7 +5,7 @@
 #include "input2_functions.h"
 #include "tbBroker.h"
 #include "clockConfig.h"
-
+#include <esp_wifi.h>
 #include "config.h"
 #include "web_server.h"
 #include "ConfigManager.h"
@@ -166,7 +166,7 @@ void Task4code(void* pvParameters) {
 		
 		}
 		else{
-			if (wifiStarted == true)
+			if (wifiIPgot== true)
 			{
 				digitalWrite(PIN_LED_PROG,HIGH);
 				delay(100);
@@ -187,9 +187,7 @@ void setup() {
 #if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
  initPixelBright();
 #endif
-	 Serial.begin(SERIAL_DEBUG_BAUD);
-	 Serial.println(WiFi.macAddress());
-  
+	 Serial.begin(SERIAL_DEBUG_BAUD);  
  
   Timer_powerOnTimer.interval = 1000;
   Timer_runTimer.interval = 1000;  
@@ -316,25 +314,35 @@ xTaskCreatePinnedToCore(
 
 
 void loop(){
-    vTaskDelay(10 / portTICK_RATE_MS);
+  vTaskDelay(10 / portTICK_RATE_MS);
 	 cleanClients();
 #if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
     if(configMode_enable){
       pixel_configEn();
     }
     else{
-        if(wifiStarted){
-            if(tbConnected){
-              rainbow(5);
-            }
-            else{
-                pixel_server_unreacheble();
-            }
-      
-   }
-   else{
-         pixel_noWifi();
-   }
+            if(wifiStarted){
+
+              if(wifiIPgot){
+
+                if(tbConnected){
+                    rainbow(5);
+                }
+                
+                else{
+                    pixel_server_unreacheble();
+                }
+
+              }
+              else{
+                Serial.println("no ip");
+                    pixel_no_ip();
+              }          
+          }
+          else{
+                
+                pixel_noWifi();
+          }
     }
    
 #endif 

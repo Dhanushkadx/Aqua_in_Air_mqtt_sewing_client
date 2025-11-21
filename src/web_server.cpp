@@ -28,6 +28,7 @@
 unsigned long ota_progress_millis = 0;
 int status_wifi;
 bool wifiStarted = false;
+bool wifiIPgot = false;
 TimerSW Timer_WIFIrecon;
 // the IP address for the shield:
 // Set your Static IP address
@@ -85,6 +86,8 @@ void initWiFi_STA(){
 	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
 	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
 	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+	 
+	Serial.println(WiFi.macAddress());
 	#ifdef FORCE_BSSID
 	// Configures static IP address
 	if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
@@ -128,9 +131,9 @@ void initWiFi_AP() {
 }
 
 
-
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 	Serial.printf("WiFi - Connected to %s\n", structSysConfig.wifissid_sta);
+	wifiStarted = true;
 
   }
   
@@ -142,7 +145,8 @@ void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 	IPAddress ip = WiFi.localIP();
 	String my_ip = ip.toString();
 	initRTC();
-	wifiStarted = true;
+	wifiIPgot = true;
+	
   }
   
   void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
@@ -153,7 +157,7 @@ void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 	if(wifiStarted){// Loop until we're reconnected
 		Timer_WIFIrecon.previousMillis = millis();
 		wifiStarted = false;
-		
+		wifiIPgot = false;
 	}
 	
 	vTaskDelay(500 / portTICK_RATE_MS);

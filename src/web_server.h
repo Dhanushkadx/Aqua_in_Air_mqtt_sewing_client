@@ -15,7 +15,7 @@
 #include <ArduinoJson.h>
 #include "TimerSW.h"
 #include "clockConfig.h"
-
+#include <esp_wifi.h>
 
 #define JSON_DOC_SIZE_DEVICE_DATA 15000
 #define JSON_DOC_SIZE_USER_DATA 2048

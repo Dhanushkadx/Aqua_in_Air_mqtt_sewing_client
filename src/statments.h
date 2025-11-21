@@ -18,6 +18,7 @@
 extern char macStr[18];
 extern char device_id_macStr[18];
 extern bool wifiStarted;
+extern bool wifiIPgot;
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;
