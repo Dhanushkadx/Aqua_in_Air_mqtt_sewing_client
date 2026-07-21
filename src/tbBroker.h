@@ -2,6 +2,9 @@
 
 #ifndef _TBBROKER_h
 #define _TBBROKER_h
+
+//#define MQTT_SECURE
+
 #include <Arduino.h>
 #include "pinsx.h"
 #include "typex.h"
@@ -14,6 +17,7 @@
 #include "clockConfig.h"
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
+#include <WiFiClientSecure.h>
 
 #ifdef THERMO_OK
 #include "thermo.h"

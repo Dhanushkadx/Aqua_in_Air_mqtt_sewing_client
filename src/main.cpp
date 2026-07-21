@@ -64,7 +64,7 @@ SemaphoreHandle_t  xMutex_dataTB;
 
 
 // Initialize underlying client, used to establish a connection
-WiFiClient espClient;
+//WiFiClient espClient;
 
 
 TaskHandle_t Task1;

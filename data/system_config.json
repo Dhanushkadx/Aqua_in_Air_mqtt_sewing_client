@@ -1,9 +1,9 @@
 {
   "wifissid_ap": "",
-  "wifissid_sta": "mac",
+  "wifissid_sta": "IoT-2",
   "wifipass_ap": "",
-  "wifipass_sta": "Aqua@10T",
-  "server_url": "192.168.25.20",
+  "wifipass_sta": "welcome@2026",
+  "server_url": "10.229.23.252",
   "device_token": "slbof5wXWTi5Yy5JRhxO",
   "server_port": "1883",
   "wifi_reconnect_time": 30,

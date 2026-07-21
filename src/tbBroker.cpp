@@ -1,9 +1,69 @@
 
 #include "tbBroker.h"
+
 char* fw_ver = "1.50";
 
 char* mqttBaseTopic = "nodered/sewing/";
  // Construct the complete topic for this machine
+#ifdef MQTT_SECURE
+// load DigiCert Global Root CA ca_cert
+const char * ca_cert = \
+  "-----BEGIN CERTIFICATE-----\n"\
+"MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n"\
+"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n"\
+"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD\n"\
+"QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT\n"\
+"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n"\
+"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG\n"\
+"9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB\n"\
+"CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97\n"\
+"nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt\n"\
+"43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P\n"\
+"T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4\n"\
+"gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO\n"\
+"BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR\n"\
+"TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw\n"\
+"DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr\n"\
+"hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg\n"\
+"06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF\n"\
+"PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\n"\
+"YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\n"\
+"CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4="\
+"-----END CERTIFICATE-----\n";
+
+// init secure wifi client
+WiFiClientSecure espClient;
+// MQTT Broker
+
+	// const char* mqttServer = "j0117d13.ala.asia-southeast1.emqxsl.com";
+	// const int mqtt_port = 8883;
+	// const char *mqtt_username = "gsmesp32";
+	// const char *mqtt_password = "12345";
+
+#define MQTT_SERVER   "j0117d13.ala.asia-southeast1.emqxsl.com"
+#define MQTT_PORT     8883
+#define MQTT_USERNAME "gsmesp32"
+#define MQTT_PASSWORD "12345"
+
+#else
+// init secure wifi client
+WiFiClient espClient;
+// MQTT Broker
+	// char mqttServer[100] = {0};
+	// char mqtt_username[100] = {0};
+	// char mqtt_password[100] = {0};
+	// uint32_t mqtt_port;
+//const char* mqttServer = "192.168.1.200";
+//onst int mqtt_port = 1883;
+//const char *mqtt_username = "dhanushkadx";
+//const char *mqtt_password = "cyclone10153";
+#define MQTT_SERVER   structSysConfig.server_url
+#define MQTT_PORT     structSysConfig.server_port
+#define MQTT_USERNAME "dhanushkadx"
+#define MQTT_PASSWORD "cyclone10153"
+
+
+#endif
 
 TimerSW Timer_busy;
 bool tbConnected = false;
@@ -50,8 +110,15 @@ void tb_live(){
 	if (!client.connected()) {
 		tbConnected = false;
 		digitalWrite(PIN_ONLINE,LOW);
+
+     // set root ca cert
+#ifdef MQTT_SECURE
+  espClient.setCACert(ca_cert);
+#endif		
+		
 		client.setKeepAlive(60);
 		uint16_t port_number = atoi(structSysConfig.server_port);
+		//client.setServer(MQTT_SERVER,MQTT_PORT);
 		client.setServer(structSysConfig.server_url, port_number);
 		Serial.printf_P(PSTR("MQTT - Connecting to server %s port: %d"),structSysConfig.server_url, port_number);
 		Timer_mqtt_reconnect.previousMillis = millis();
@@ -76,7 +143,7 @@ void tb_live(){
 			Serial.printf_P(PSTR("MQTT - Will message: %s \n"), jsonString.c_str());
 			Serial.printf_P(PSTR("MQTT - Client ID: %s\n"),device_id_macStr);
 			//boolean connect (clientID, [username, password], [willTopic, willQoS, willRetain, willMessage], [cleanSession])
-			if (client.connect(device_id_macStr, "dhanushkadx", "cyclone10153", mqttTopic, 1, true, jsonString.c_str())) {
+			if (client.connect(device_id_macStr, MQTT_USERNAME, MQTT_PASSWORD, mqttTopic, 1, true, jsonString.c_str())) {
 				Serial.println(F("MQTT - connected"));
 				digitalWrite(PIN_ONLINE,HIGH);
 				tbConnected = true;

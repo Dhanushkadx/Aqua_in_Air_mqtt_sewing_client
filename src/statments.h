@@ -24,7 +24,8 @@ extern IPAddress gateway;
 extern IPAddress subnet;
 extern IPAddress primaryDNS;
 extern IPAddress secondaryDNS;
-extern WiFiClient espClient;
+
+//extern WiFiClient espClient;
 extern PubSubClient client;
 extern systemConfigTypedef_struct structSysConfig;
 extern systemDataTypedef_struct structSysData;

@@ -98,6 +98,7 @@ void initWiFi_STA(){
 		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
 	#endif
 	Serial.printf_P(PSTR("Connecting to [%s] \n"), structSysConfig.wifissid_sta); 
+	Serial.printf_P(PSTR("PASS [%s] \n"), structSysConfig.wifipass_sta); 
 }
 
 void initWiFi_AP() {
