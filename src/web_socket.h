@@ -7,7 +7,7 @@
 #include "config.h"
 #include "web_socket.h"
 #include <Arduino.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include "TimerSW.h"

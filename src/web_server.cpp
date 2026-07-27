@@ -13,7 +13,7 @@
 */
 
 #include <Arduino.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncWebSocket.h>
@@ -27,19 +27,10 @@
 
 unsigned long ota_progress_millis = 0;
 int status_wifi;
-bool wifiStarted = false;
-bool wifiIPgot = false;
+// wifiStarted / wifiIPgot, the static-IP globals, initWiFi_STA() and the three
+// WiFi event handlers now live in core/wifi_com.cpp — this file no longer owns
+// the STA link, only the web/websocket UI and the config-mode AP.
 TimerSW Timer_WIFIrecon;
-// the IP address for the shield:
-// Set your Static IP address
-IPAddress local_IP(10, 0, 0, 100);
-//IPAddress local_IP(192,168,43,10);
-// Set your Gateway IP address
-IPAddress gateway(10, 0, 0, 1);
-
-IPAddress subnet(255, 255, 255, 0);
-IPAddress primaryDNS(8, 8, 8, 8);   //optional
-IPAddress secondaryDNS(8, 8, 4, 4); //optional
 byte bssid[] = {0xac, 0x71, 0x2e, 0x2e, 0xcc, 0x1a};
 long previousMillis =0;
 long interval = 30000;
@@ -81,26 +72,6 @@ void initWebSocket() {
 }
 
 
-void initWiFi_STA(){
-	WiFi.mode(WIFI_STA);
-	WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
-	WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
-	WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-	 
-	Serial.println(WiFi.macAddress());
-	#ifdef FORCE_BSSID
-	// Configures static IP address
-	if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
-		Serial.println(F("STA Failed to configure"));
-	}
-		WiFi.begin(structSysConfig.wifipass_sta, structSysConfig.wifipass_sta,6,bssid);
-	#else
-		WiFi.begin(structSysConfig.wifissid_sta, structSysConfig.wifipass_sta);
-	#endif
-	Serial.printf_P(PSTR("Connecting to [%s] \n"), structSysConfig.wifissid_sta); 
-	Serial.printf_P(PSTR("PASS [%s] \n"), structSysConfig.wifipass_sta); 
-}
-
 void initWiFi_AP() {
 	
 	
@@ -132,56 +103,9 @@ void initWiFi_AP() {
 }
 
 
-void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
-	Serial.printf("WiFi - Connected to %s\n", structSysConfig.wifissid_sta);
-	wifiStarted = true;
-
-  }
-  
-  void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
-	
-	Serial.println(F("IP address: "));
-	Serial.println(WiFi.localIP());	
-	char IP[] = "xxx.xxx.xxx.xxx";          // buffer
-	IPAddress ip = WiFi.localIP();
-	String my_ip = ip.toString();
-	initRTC();
-	wifiIPgot = true;
-	
-  }
-  
-  void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
-	Serial.print(F("WiFi lost connection. Reason: "));
-	Serial.println(info.wifi_sta_disconnected.reason);
-	Serial.println(F("Trying to Reconnect"));
-	WiFi.reconnect();
-	if(wifiStarted){// Loop until we're reconnected
-		Timer_WIFIrecon.previousMillis = millis();
-		wifiStarted = false;
-		wifiIPgot = false;
-	}
-	
-	vTaskDelay(500 / portTICK_RATE_MS);
-	if (Timer_WIFIrecon.Timer_run()) {
-		Serial.println(F("WiFi connection timeout, restarting..."));
-		ConfigManager :: saveSystemData(structSysData);
-		WiFi.disconnect();
-		ESP.restart();
-		return;
-	}
-  }
-
-void initSPIFFS() {
-	Serial.println(F("init SPIFF"));
-	if (!SPIFFS.begin()) {
-		Serial.println("Cannot mount SPIFFS volume...");
-		while (1) {
-			delay(100);
-		}
-	}
-	
-	
-}
+// initSPIFFS() is gone — config_init() (core/cfgindex.cpp) mounts LittleFS with
+// format-on-failure before anything else in setup(), so a second mount here
+// would be redundant and its while(1) on failure would brick a fresh board.
 
 // ----------------------------------------------------------------------------
 // Web server initialization
@@ -200,7 +124,7 @@ void onRootRequest(AsyncWebServerRequest *request) {
 		 path = "/index.html";
 	 }
 
-	 request->send(SPIFFS, path, "text/html", false, processor);
+	 request->send(LittleFS, path, "text/html", false, processor);
 }
 
  // Send a GET request to <ESP_IP>/get?inputString=<inputMessage>
@@ -208,7 +132,7 @@ void onGetRequest(AsyncWebServerRequest *request) {
 	String inputMessage;
 	char buffer[50];
 	if (request->hasParam("wifissid_sta")) {// I need to know the source web page of the GET request if this para available it s mean page is zone page
-		File fileToReadx = SPIFFS.open("/system_config.json") ;
+		File fileToReadx = LittleFS.open("/system_config.json") ;
 		DynamicJsonDocument docrx(JSON_DOC_SIZE_DEVICE_DATA);
 		deserializeJson(docrx,  fileToReadx);
 		fileToReadx.close();
@@ -310,7 +234,7 @@ void onGetRequest(AsyncWebServerRequest *request) {
 			docrx[buffer]= inputMessage;
 		}
 
-		File fileToWritex = SPIFFS.open("/system_config.json", FILE_WRITE);		
+		File fileToWritex = LittleFS.open("/system_config.json", FILE_WRITE);		
 		serializeJson(docrx,  fileToWritex);
 		fileToWritex.close();
 	}
@@ -322,13 +246,13 @@ void onGetRequest(AsyncWebServerRequest *request) {
 void initWebServer() {
 	server.on("/", onRootRequest);
 	server.on("/get", onGetRequest);
-	server.serveStatic("/", SPIFFS, "/");
+	server.serveStatic("/", LittleFS, "/");
 	//server.setAuthentication(http_username, systemConfig.installer_pass);
 	AsyncElegantOTA.begin(&server);    // Start AsyncElegantOTA
   	server.begin();
   	Serial.println("HTTP server started");
 	/*server
-	.serveStatic("/", SPIFFS, "/www/")
+	.serveStatic("/", LittleFS, "/www/")
 	.setDefaultFile("default.html")
 	.setAuthentication("user", "pass");*/
 }

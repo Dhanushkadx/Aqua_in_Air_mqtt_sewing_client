@@ -29,23 +29,18 @@ extern IPAddress secondaryDNS;
 extern PubSubClient client;
 extern systemConfigTypedef_struct structSysConfig;
 extern systemDataTypedef_struct structSysData;
-extern SemaphoreHandle_t  xMutex_dataTB;
 extern bool configMode_enable;
 
-extern volatile bool ledState;
-extern bool busy;
+// Sewing machine state. SINGLE-WRITER: Task2 only — the input handlers write,
+// sewing_tele reads to build the frame. Never write these from another task;
+// post a domain_cmd instead (see sewing_cmd.h).
 extern bool Prev_faulty_alarm_status;
-extern bool Current_faulty_alarm_status;
-extern bool prev_actRun, actRun;
-extern bool data_updated_timeSeries;
-extern bool data_updated_critical;
+extern bool actRun;
 extern eMC_state prevMCstate;
 extern eMC_state curruntMCstate;
 extern TimerSW Timer_powerOnTimer;
 extern TimerSW Timer_runTimer;
-extern TimerSW Timer_acNoice;
 extern TimerSW Timer_idle_detect;
-extern EventGroupHandle_t EventRTOS_IO_events;
 
 
 #define sensor_pin_count 3

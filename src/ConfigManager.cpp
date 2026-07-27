@@ -1,8 +1,9 @@
 #include "ConfigManager.h"
+#include "default_config.h"
 
 // System configuration functions
 void ConfigManager::saveSystemConfig(const systemConfigTypedef_struct &config) {
-	File configFileR = SPIFFS.open("/system_config.json", FILE_READ);
+	File configFileR = LittleFS.open("/system_config.json", FILE_READ);
 	if (!configFileR) {
 		Serial.println("Failed to open system config file for reading after creating default.");
 		return;
@@ -18,7 +19,7 @@ void ConfigManager::saveSystemConfig(const systemConfigTypedef_struct &config) {
 	}
 	configFileR.close();
 	///////////////////////////////////////////////////////////////////
-	File configFile = SPIFFS.open("/system_config.json", FILE_WRITE);
+	File configFile = LittleFS.open("/system_config.json", FILE_WRITE);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for writing.");
 		return;
@@ -70,7 +71,7 @@ void ConfigManager::saveSystemConfig(const systemConfigTypedef_struct &config) {
 
 void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
 	bool file_creat = false;
-	File configFile = SPIFFS.open("/system_config.json", FILE_READ);
+	File configFile = LittleFS.open("/system_config.json", FILE_READ);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for reading.");
 		file_creat = true;
@@ -82,7 +83,7 @@ void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
 		writeDefaultSystemConfig();
 	}
 	
-	configFile = SPIFFS.open("/system_config.json", FILE_READ);
+	configFile = LittleFS.open("/system_config.json", FILE_READ);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for reading after creating default.");
 		return;
@@ -138,8 +139,7 @@ void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
   Serial.print(F("wifipass_ap: "));
   Serial.println(doc["wifipass_ap"].as<String>());
 
-  Serial.print(F("wifipass_sta: "));
-  //Serial.println(doc["wifipass_sta"].as<String>());
+  Serial.println(F("wifipass_sta: <hidden>"));  // password kept out of the serial log
 
   Serial.print(F("server_url: "));
   Serial.println(doc["server_url"].as<String>());
@@ -198,7 +198,7 @@ void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
 }
 
 void ConfigManager::writeDefaultSystemConfig() {
-	File configFile = SPIFFS.open("/system_config.json", FILE_WRITE);
+	File configFile = LittleFS.open("/system_config.json", FILE_WRITE);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for writing.");
 		//return;
@@ -216,23 +216,23 @@ void ConfigManager::writeDefaultSystemConfig() {
 	// Create a JSON document and set default values for the system configuration settings.
 	//StaticJsonDocument<1556> doc;
 	
-	doc["http_username"] = "admin";
-	doc["http_password"] = "admin";
-	doc["wifissid_ap"] = "";
-	doc["wifissid_sta"] = "";
-	doc["wifipass_ap"] = "";
-	doc["wifipass_sta"] = "";
+	doc["http_username"] = DEFAULT_HTTP_USER;
+	doc["http_password"] = DEFAULT_HTTP_PASS;
+	doc["wifissid_ap"] = DEFAULT_CFG_AP_SSID;
+	doc["wifissid_sta"] = DEFAULT_WIFI_SSID;   // single source of truth (see default_config.h)
+	doc["wifipass_ap"] = DEFAULT_CFG_AP_PASS;
+	doc["wifipass_sta"] = DEFAULT_WIFI_PASS;
 	doc["server_url"] = "";
-	doc["wifi_reconnect_time"] = 30,
-	doc["updates_interval"] = 30,
-	doc["realTime"] = false;
-	doc["server_port"] = "1883";
+	doc["wifi_reconnect_time"] = DEFAULT_WIFI_RECONNECT_S,
+	doc["updates_interval"] = DEFAULT_UPDATES_INTERVAL_S,
+	doc["realTime"] = DEFAULT_REALTIME;
+	doc["server_port"] = DEFAULT_SERVER_PORT;
 	doc["device_token"] = "";
-	doc["device_location"] = "module_";
-	doc["sewing_machine_type"] = "single needle";
-	doc["operation_name"] = "any operation";
-	doc["machine_serial"] = "000000000000";
-	doc["preScale"] = 1;
+	doc["device_location"] = DEFAULT_DEVICE_LOCATION;
+	doc["sewing_machine_type"] = DEFAULT_MACHINE_TYPE;
+	doc["operation_name"] = DEFAULT_OPERATION_NAME;
+	doc["machine_serial"] = DEFAULT_MACHINE_SERIAL;
+	doc["preScale"] = DEFAULT_PRESCALE;
 
 	// Calculate the required size to store the serialized JSON data
 	//size_t jsonSize = measureJson(doc);
@@ -249,20 +249,21 @@ void ConfigManager::writeDefaultSystemConfig() {
 }
 
 void ConfigManager::saveSystemData(const systemDataTypedef_struct &config) {
-	File configFile = SPIFFS.open("/system_data.json", FILE_WRITE);
+	File configFile = LittleFS.open("/system_data.json", FILE_WRITE);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for writing.");
 		return;
 	}
 
-	// Create a JSON document and serialize the system config data to it.
-	StaticJsonDocument<1256> doc;
-	doc["DpowerTime"] = config.DpowerTime;
-	doc["DrunTime"] = config.DrunTime;
-	doc["TpowerTime"] = config.TpowerTime;
-	doc["TrunTime"] = config.TrunTime;
-	doc["DproductionCounter"] = config.DproductionCounter;
-	doc["TproductionCounter"] = config.TproductionCounter;
+	// The ABSOLUTE counters are what gets persisted now. Previously this file
+	// stored only the D*/T* variants and never the absolute ones, so a reboot
+	// silently zeroed lifetime production — the opposite of what we want from a
+	// monotonic counter that ThingsBoard windows.
+	StaticJsonDocument<256> doc;
+	doc["productionCounter"] = config.productionCounter;
+	doc["powerTime"]         = config.powerTime;
+	doc["runTime"]           = config.runTime;
+	doc["count_total"]       = config.count_total;
 
 	// Serialize the JSON document to the file.
 	serializeJson(doc, configFile);
@@ -273,7 +274,7 @@ void ConfigManager::saveSystemData(const systemDataTypedef_struct &config) {
 
 void ConfigManager::loadSystemData(systemDataTypedef_struct &strData) {
 	bool file_creat = false;
-	if (SPIFFS.exists("/system_data.json")) {
+	if (LittleFS.exists("/system_data.json")) {
 		Serial.println("system_data.json exists");
 		} else {
 		Serial.println("system_data.json does not exist");
@@ -287,7 +288,7 @@ void ConfigManager::loadSystemData(systemDataTypedef_struct &strData) {
 	}
 	
 	
-	File configFile = SPIFFS.open("/system_data.json", FILE_READ);
+	File configFile = LittleFS.open("/system_data.json", FILE_READ);
 	if (!configFile) {
 		Serial.println("Failed to open system data file for reading after creating default.");
 		return;
@@ -302,46 +303,39 @@ void ConfigManager::loadSystemData(systemDataTypedef_struct &strData) {
 		return;
 	}
 
-	// Copy the system config data from the JSON document to the system config struct.
-	strData.TpowerTime = doc["TpowerTime"];
-	strData.DpowerTime = doc["DpowerTime"];
-	strData.TrunTime = doc["TrunTime"];
-	strData.DrunTime = doc["DrunTime"];
-	strData.TproductionCounter = doc["TproductionCounter"];
-	strData.DproductionCounter = doc["DproductionCounter"];
+	// `| 0` so a file written by an older build — which had none of these keys —
+	// loads as zero rather than garbage.
+	strData.productionCounter = doc["productionCounter"] | 0;
+	strData.powerTime         = doc["powerTime"]         | 0;
+	strData.runTime           = doc["runTime"]           | 0;
+	strData.count_total       = doc["count_total"]       | 0;
 
-	Serial.print(F("Power ON time: "));
-	Serial.println(strData.TpowerTime);
-	Serial.print(F("Power OFF time: "));
-	Serial.println(strData.DpowerTime);
-	Serial.print(F("Production ON time: "));
-	Serial.println(strData.TrunTime);
-	Serial.print(F("Production OFF time: "));
-	Serial.println(strData.DrunTime);
-	Serial.print(F("Total production counter: "));
-	Serial.println(strData.TproductionCounter);
-	Serial.print(F("Daily production counter: "));
-	Serial.println(strData.DproductionCounter);
-	
-	
+	Serial.print(F("Production counter: "));
+	Serial.println(strData.productionCounter);
+	Serial.print(F("Power on time: "));
+	Serial.println(strData.powerTime);
+	Serial.print(F("Run time: "));
+	Serial.println(strData.runTime);
+	Serial.print(F("Session count: "));
+	Serial.println(strData.count_total);
+
+
 	configFile.close();
 	Serial.println("System Data loaded.");
 }
 
 void ConfigManager::writeDefaultSystemData() {
-	File configFile = SPIFFS.open("/system_data.json", FILE_WRITE);
+	File configFile = LittleFS.open("/system_data.json", FILE_WRITE);
 	if (!configFile) {
 		Serial.println("Failed to open system config file for writing.");
 		return;
 	}
 	// Create a JSON document and set default values for the system configuration settings.
-	StaticJsonDocument<1256> doc;
-	doc["TpowerTime"] = 0;
-	doc["DpowerTime"] = 0;
-	doc["TrunTime"] = 0;
-	doc["DrunTime"] = 0;
-	doc["TproductionCounter"] = 0;
-	doc["DproductionCounter"] = 0;
+	StaticJsonDocument<256> doc;
+	doc["productionCounter"] = 0;
+	doc["powerTime"]         = 0;
+	doc["runTime"]           = 0;
+	doc["count_total"]       = 0;
 
 	// Serialize the JSON document to the file.
 	serializeJson(doc, configFile);

@@ -6,10 +6,13 @@
 
 void sensor_scan(){
 	//Serial.println("pin change");
+	// No lock: Task2 is the sole writer AND the sole reader of everything the
+	// callbacks below touch (sewing_tele_tick() builds the frame on this same
+	// task). The mutex that used to wrap this loop was also held across the
+	// Serial.print calls inside fn_productionCounter, stalling the MQTT task for
+	// milliseconds at a time — that problem goes away with it.
 	for(uint8_t scan_index=0; scan_index<sensor_pin_count; scan_index++){
-		
-		 while(!(xSemaphoreTake( xMutex_dataTB, portMAX_DELAY )));
-		 
+
 		GPIO_array[scan_index].nowState = digitalRead(GPIO_array[scan_index].GPIOpin);
 		if(GPIO_array[scan_index].prevState!=GPIO_array[scan_index].nowState){
 			long now = millis();
@@ -34,8 +37,6 @@ void sensor_scan(){
 		else {
 			if (GPIO_array[scan_index].fn_HIGH_CONTINU != NULL) { GPIO_array[scan_index].fn_HIGH_CONTINU();}
 		}
-		
-		xSemaphoreGive(xMutex_dataTB);
 	}
 }
 
@@ -47,12 +48,8 @@ void fn_power_on(){
 	if (currentMillis - previousMillis >= 1000) {
 		// save the last time you blinked the LED
 		previousMillis = currentMillis;
-		//data_updated_timeSeries=true;
-		 xSemaphoreTake(xMutex_dataTB, portMAX_DELAY);
-		structSysData.TpowerTime++;
-		structSysData.DpowerTime++;
+		// Same task as sensor_scan() and sewing_tele_tick() — single writer, no lock.
 		structSysData.powerTime++;
-		 xSemaphoreGive(xMutex_dataTB); // release mutex
 		//Serial.print("powerTime:");
 		//Serial.println(structSysData.powerTime);
 	}
@@ -62,7 +59,6 @@ void fn_power_on(){
  /// @brief 
  /// @param dura 
  void fn_reset_falty_alarm(int dura) {
-	 data_updated_timeSeries = true;
 	 Prev_faulty_alarm_status = false;
  }
 

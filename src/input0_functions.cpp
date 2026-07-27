@@ -1,13 +1,13 @@
 
 
 #include "input0_functions.h"
+#include "sewing_context.h"   // sewing_context_counting_enabled()
 
 uint8_t pulseCount = 0;
 // high CONT
 void fn_production_idle_detect() {
 	
 	if (Timer_idle_detect.Timer_run()) {
-		data_updated_timeSeries = true;
 		if(curruntMCstate != MC_FAULT){
 			curruntMCstate = IDLE;
 		}
@@ -23,16 +23,14 @@ void fn_productionCounter(int duration){
 	Serial.print(pulseCount);
 	if(pulseCount >= structSysConfig.preScale){
 		pulseCount = 0;
-		
-		structSysData.productionCounter++;
-		structSysData.TproductionCounter++;
-		structSysData.DproductionCounter++;
-		data_updated_timeSeries=true;
+
+		structSysData.productionCounter++;   // lifetime odometer, never stops
+		// Session counter only advances while a manifest is open (R3 stops it on
+		// close). With no manifest at all it counts too — standalone behaviour.
+		if (sewing_context_counting_enabled()) structSysData.count_total++;
 		Timer_idle_detect.previousMillis = millis();
 		Serial.print(F("  ProductionCount:"));
-		Serial.print(structSysData.productionCounter);
-		Serial.print(F("  DotalProductionCount:"));
-		Serial.println(structSysData.DproductionCounter);
+		Serial.println(structSysData.productionCounter);
 		if (curruntMCstate != MC_FAULT)
 		{
 			/* code */curruntMCstate = MC_BUSY;

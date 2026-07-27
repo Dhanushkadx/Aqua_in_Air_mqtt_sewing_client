@@ -13,7 +13,7 @@
 AsyncWebSocket ws("/ws");
 
 void notifyClients_pageIndex() {
-	File fileToReadx = SPIFFS.open("/system_config.json");
+	File fileToReadx = LittleFS.open("/system_config.json");
 	if (!fileToReadx)
 	{
 		Serial.println(F("couldn't open file"));

@@ -22,12 +22,10 @@
  void fn_runDownTime_end_notify(int duration) {
 	 curruntMCstate = IDLE;
      digitalWrite(PIN_LED_FAULT,LOW);
-     data_updated_timeSeries = true;
  }
 
  //falling EDGE
  void fn_runDownTime_start_notify(int duration) {
 	curruntMCstate = MC_FAULT;
-    data_updated_timeSeries = true;
  }
 

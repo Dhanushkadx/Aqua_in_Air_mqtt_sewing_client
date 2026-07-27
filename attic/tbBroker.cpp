@@ -371,7 +371,7 @@ void tb_live(){
 
 
  void send_metaData_json(){
-	File configFile = SPIFFS.open("/system_config.json", FILE_READ);
+	File configFile = LittleFS.open("/system_config.json", FILE_READ);
 				// Create a JSON document and deserialize the system config data from the file to it.			
 				DynamicJsonDocument jsonDoc(1024);
 				DeserializationError error = deserializeJson(jsonDoc, configFile);

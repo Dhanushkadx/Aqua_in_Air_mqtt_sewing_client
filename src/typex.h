@@ -36,18 +36,23 @@ typedef struct systemConfig{
 	
 } systemConfigTypedef_struct;
 
+// Absolute, monotonic counters. They never roll over on the device — the daily
+// and shift figures are derived server-side by windowing the series in
+// ThingsBoard, which is more robust than a device-side midnight reset (no clock
+// dependency, no lost rollover if the device is off at midnight).
+//
+// They only change by: incrementing, an explicit counter_reset / set_counter
+// RPC, or a factory reset. Persisted to /system_data.json so a reboot does not
+// lose them. Written and read ONLY by Task2 — see sewing_cmd.h.
 typedef struct systemData{
-	unsigned int productionCounter;
-	unsigned int TproductionCounter;
-	unsigned int DproductionCounter;
-
-	unsigned int powerTime;
-	unsigned int TpowerTime;
-	unsigned int DpowerTime;
-
-	unsigned int runTime=0;
-	unsigned int TrunTime=0;
-	unsigned int DrunTime=0;
+	unsigned int productionCounter;   // pieces produced, lifetime (odometer)
+	unsigned int powerTime;           // seconds powered, lifetime
+	unsigned int runTime;             // seconds running, lifetime
+	// PrimeFlow session counter (doc/11C count_total). Pieces produced within the
+	// CURRENT manifest — resets to 0 when the manifest_id changes (lifecycle R1).
+	// Persisted too, so a reboot mid-manifest resumes the session count rather
+	// than losing it. Owned by Task2 like the others.
+	unsigned int count_total;
 	}systemDataTypedef_struct;
 
 typedef enum {MC_BUSY,IDLE,MC_FAULT,UNK}eMC_state;

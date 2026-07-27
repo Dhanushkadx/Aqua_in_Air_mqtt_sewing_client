@@ -1,11 +1,6 @@
 {
   "productionCounter": 0,
-  "TproductionCounter": 0,
-  "DproductionCounter": 0,
   "powerTime": 0,
-  "TpowerTime": 0,
-  "DpowerTime": 0,
   "runTime": 0,
-  "TrunTime": 0,
-  "DrunTime": 0
+  "count_total": 0
 }

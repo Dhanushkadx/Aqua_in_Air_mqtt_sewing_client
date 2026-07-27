@@ -7,7 +7,6 @@
 
  
  /*void fn_set_falty_alarm(int dura){
-	 data_updated_timeSeries = true;
 	 Prev_faulty_alarm_status = true;
 	 Serial.println("fault....");
  }*/
@@ -19,16 +18,15 @@
 		 {
 			 curruntMCstate = MC_BUSY;
 		 }		 
-		 structSysData.TrunTime++;
-		 structSysData.DrunTime++;
+		 // Cumulative now, not a per-run stopwatch — it is one of the three
+		 // absolute counters ThingsBoard windows. NOTE: none of the
+		 // GPIO_array[1] callbacks are registered in main.cpp today, so this
+		 // never runs and runTime stays 0 until input 1 is wired up.
 		 structSysData.runTime++;
-		 data_updated_timeSeries = true;
 		 Serial.print(F("runTime"));
-		 Serial.print(structSysData.runTime);
-		 Serial.print(F(" TotalrunTime"));
-		 Serial.println(structSysData.TrunTime);
+		 Serial.println(structSysData.runTime);
 	 }
-	 
+
  }
 
  //rising EDGE
@@ -38,7 +36,8 @@
 
  //falling EDGE
  void fn_runTime_count_reset(int duration) {
-	 structSysData.runTime = 0;
+	 // No longer zeroes runTime — it is an absolute lifetime counter now and
+	 // only an explicit RPC may reset it. This just marks the machine running.
 	 actRun = true;
  }
 
@@ -46,6 +45,5 @@
  void fn_runTime_idle_detect(){
 	 if ((Timer_idle_detect.Timer_run()&&(curruntMCstate != MC_FAULT))) {
 		 curruntMCstate = IDLE;
-		 data_updated_timeSeries = true;
 	 }
  }

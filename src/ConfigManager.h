@@ -9,7 +9,7 @@
 	#include "WProgram.h"
 #endif
 #include <FS.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include "typex.h"
 #include <ArduinoJson.h>
 #include "config.h"

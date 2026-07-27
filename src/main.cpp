@@ -3,12 +3,25 @@
 #include "input0_functions.h"
 #include "input1_functions.h"
 #include "input2_functions.h"
-#include "tbBroker.h"
 #include "clockConfig.h"
 #include <esp_wifi.h>
-#include "config.h"
+#include "Config.h"
 #include "web_server.h"
 #include "ConfigManager.h"
+
+// PrimeHive connectivity core — MQTT transport, chunked OTA, cfgIndex, portal.
+#include "core/wifi_mqtt.h"
+#include "core/wifi_com.h"
+#include "core/wifi_creds.h"
+#include "core/wifi_portal.h"
+#include "core/cfgindex.h"
+#include "core/led_status.h"
+#include "core/OTA.h"
+#include "core/aquasew_topics.h"
+#include "core/domain_cmd.h"
+#include "sewing_cmd.h"
+#include "sewing_tele.h"
+#include "sewing_context.h"
 // NEED ARDUINO JSON 6.18.0
 
 #include "statments.h"
@@ -19,46 +32,40 @@
 #include "sensor_scan.h"
 
 #include <WiFi.h>
-#include <NTPClient.h>
-#include <WiFiUdp.h>
 #include "TimerSW.h"
 #include <ESPmDNS.h>
 #include <Update.h>
 #include "soc/timer_group_struct.h"
 #include "soc/timer_group_reg.h"
-#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
-#include "pixelx.h"
-#endif
 
-bool tbLoopDone = false;
-bool SWrestart = false;
 bool configMode_enable = false;
 
-String lastDate;
-// Variables to save date and time
-String formattedDate;
-String dayStamp;
-String timeStamp;
 Struct_GPIO_INFO GPIO_array[sensor_pin_count];
-SYSCONFIG Struct_SYSCONFIG_INFO;
 systemConfigTypedef_struct structSysConfig;
 systemDataTypedef_struct structSysData;
-char rtos_StringToSend[SIZE_StringToSend];
-bool subscribed = false;
-// LED number that is currently ON.
-int current_led = 0;
 char macStr[18];
 char device_id_macStr[18];
 
 TimerSW Timer_powerOnTimer;
 TimerSW Timer_runTimer;
-TimerSW Timer_acNoice;
 TimerSW Timer_idle_detect;
 
+// Sewing machine-state globals. These lived in tbBroker.cpp, which was the
+// transport AND the domain state holder; the transport moved to core/wifi_mqtt
+// (which must stay domain-agnostic), so the state lands here with the rest of
+// the device globals.
+//
+// SINGLE-WRITER: Task2 is the only task that touches these — the input handlers
+// write them, sewing_tele_tick() reads them to build the frame. No lock is
+// needed and none exists. Do NOT write them from Task1 (the MQTT task); post a
+// domain_cmd instead, or a read-modify-write can be silently lost.
+bool Prev_faulty_alarm_status = false;
+bool actRun = false;
+eMC_state prevMCstate = UNK;      // edge detector for the transition publish
+eMC_state curruntMCstate = IDLE;
 
 
-//create handle for the mutex. It will be used to reference mutex
-SemaphoreHandle_t  xMutex_dataTB;
+
 //#define DEMO_MODE
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
@@ -67,14 +74,12 @@ SemaphoreHandle_t  xMutex_dataTB;
 //WiFiClient espClient;
 
 
+// Task1 = MQTT/OTA/cfgIndex (com_loop), Task2 = input scan. The old Task3 (an
+// empty NTP stub — clockConfig owns the clock), Task4 and Task5 (PIN_LED_PROG /
+// PIN_ONLINE blink patterns) are gone: the WS2812 status pixel driven by
+// core/led_status from loop() now shows the whole connectivity state machine.
 TaskHandle_t Task1;
 TaskHandle_t Task2;
-TaskHandle_t Task3;
-TaskHandle_t Task4;
-TaskHandle_t Task5;
-// Define NTP Client to get time
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
 
 //Task1code: TB com loop
 void Task1code( void * pvParameters ){
@@ -101,97 +106,42 @@ void Task2code( void * pvParameters ){
   
   for(;;){
 
-   #ifdef DEMO_MODE // demo code
-   uint32_t now = millis();   
+   #ifdef DEMO_MODE // demo code — synthesises production without real inputs
+   // No lock: this runs on Task2, which owns these counters. All three are the
+   // absolute monotonic counters, so runTime accumulates here rather than being
+   // set to the interval.
+   uint32_t now = millis();
    if(now-prev_millis>interval*1000){
     interval = random(20,35);
     prev_millis = now;
-    xSemaphoreTake(xMutex, portMAX_DELAY);
     structSysData.productionCounter++;
-    structSysData.TproductionCounter++;
-    runTime = interval;
-    data_updated_timeSeries = true;
-    xSemaphoreGive(xMutex); // release mutex   
+    structSysData.powerTime += interval;
+    structSysData.runTime   += interval;
     }
    #endif
    
+   // Inbound first, so a reset / manifest change lands before the frame that
+   // reports it. Both drain queues fed by other tasks and apply on Task2.
+   sewing_cmd_tick();       // RPC commands: resets, set_counter, save+restart
+   sewing_context_tick();   // cfgIndex blocks: machine_config, active_manifest (R1-R4)
+
    fn_power_on();// count power on time
-   sensor_scan();// scan inputs    
-   
+   sensor_scan();// scan inputs
+
+   // Task2 owns every counter and machine-state flag, so it is also what
+   // publishes them. Nothing crosses tasks except the finished JSON.
+   sewing_tele_tick();  // outbound — build + enqueue telemetry + events
+
   vTaskDelay(10 / portTICK_RATE_MS);
   }
 }
 
-//Task3code: Time NTP
-void Task3code( void * pvParameters ){
-  Serial.print("Task3 running on core ");
-  Serial.println(xPortGetCoreID());
-  static uint32_t x=0;
-  for(;;){
-  
-      //if (wifiStarted) {
-         // ntp_loop();
-     //   }
-    vTaskDelay(10 / portTICK_RATE_MS);
-  }
-}
-
-
-void Task5code(void* pvParameters){
-  while(1){
-    vTaskDelay(1 / portTICK_RATE_MS);
-    if(ledState){
-      digitalWrite(PIN_ONLINE,HIGH);
-				delay(100);
-				digitalWrite(PIN_ONLINE,LOW);
-				delay(100);
-    }
-    else{
-
-    }
-  }
-}
-
-// Task4code: web server
-void Task4code(void* pvParameters) {
-    Serial.print("Task4 running on core ");
-    Serial.println(xPortGetCoreID());
-    static uint32_t x = 0;
-    for (;;) {
-        
-        vTaskDelay(1 / portTICK_RATE_MS);
-		if (configMode_enable)
-		{
-			digitalWrite(PIN_LED_PROG,HIGH);
-		
-		}
-		else{
-			if (wifiIPgot== true)
-			{
-				digitalWrite(PIN_LED_PROG,HIGH);
-				delay(100);
-				digitalWrite(PIN_LED_PROG,LOW);
-				delay(2500);
-			}
-			else{
-				digitalWrite(PIN_LED_PROG,HIGH);
-				delay(300);
-				digitalWrite(PIN_LED_PROG,LOW);
-				delay(300);
-			}
-		}
-    }
-}
 void setup() {
 	delay(2000);
-#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
- initPixelBright();
-#endif
 	 Serial.begin(SERIAL_DEBUG_BAUD);  
  
   Timer_powerOnTimer.interval = 1000;
   Timer_runTimer.interval = 1000;  
-  Timer_acNoice.interval = 200;
   Timer_idle_detect.interval = 10000;
   Timer_idle_detect.previousMillis = millis();
 
@@ -203,9 +153,20 @@ void setup() {
   pinMode(PIN_LED_FAULT,OUTPUT);
 
   
-	initSPIFFS();	
- // ConfigManager::writeDefaultSystemConfig();
-//	ConfigManager::writeDefaultSystemData();
+	config_init();   // mounts LittleFS (format on failure) + loads cfgIndex versions
+	wifi_creds_init();  // /wifi.json, or the compile-time defaults on first boot
+
+	// WiFi enrollment portal — PIN_PROGRAM held LOW for 3s, or the pending flag
+	// set by the enter_portal RPC. NEVER RETURNS: it reboots on save or timeout.
+	// Must run before any task is created, while nothing else is touching the radio.
+	if (portal_should_enter()) portal_run();
+
+	ota_boot_check();   // latch the NVS marker from a prior OTA (success/aborted)
+	led_status_begin();
+
+	// A SHORT press (not held long enough for the portal above) still enters the
+	// legacy device-config AP, which serves the richer system_config.json editor
+	// that the credential portal deliberately does not duplicate.
   if (!digitalRead(PIN_PROGRAM))
   {
 	 //ConfigManager :: writeDefaultSystemConfig();
@@ -216,7 +177,7 @@ void setup() {
   else{
 	  configMode_enable = false;
 	  ConfigManager::loadSystemConfig(structSysConfig);
-	  initWiFi_STA();
+	  initWiFi_STA();       // core/wifi_com.cpp — reads creds from wifi_creds
   }
   uint8_t mac[6];
   WiFi.macAddress(mac);
@@ -226,10 +187,19 @@ void setup() {
 
   ConfigManager :: loadSystemData(structSysData);
   initWebServerTimers();
-	initTimers();  
-  // create mutex and assign it a already create handler 
-  xMutex_dataTB = xSemaphoreCreateMutex();
+  // No data mutex any more: structSysData and the machine-state flags are
+  // written AND read only by Task2 (single-writer), and the only thing crossing
+  // tasks is the finished JSON via the MQTT TX queue. Commands travel the other
+  // way through domain_cmd, so nothing needs a lock.
+  domain_cmd_init();      // MQTT task -> Task2 command channel
+  sewing_context_init();  // machine_config/active_manifest consumer + persisted context
+  sewing_tele_init();     // publish timer + state-transition baseline
   initWebServices();
+
+  // Transport last: topics_init() needs the MAC, and mqtt_setup() registers the
+  // WiFi events + creates the TX/RX queues that Task1's com_loop() drains.
+  topics_init();
+  mqtt_setup();
 
  GPIO_array[0].GPIOpin = PIN_INPUT1;
  GPIO_array[1].GPIOpin = PIN_INPUT2;
@@ -278,37 +248,6 @@ void setup() {
                     &Task2,      /* Task handle to keep track of created task */
                     1);          /* pin task to core 1 */
 
- //create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
-  xTaskCreatePinnedToCore(
-                    Task3code,   /* Task function. */
-                    "Task3",     /* name of task. */
-                    10000,       /* Stack size of task */
-                    NULL,        /* parameter of the task */
-                    1,           /* priority of the task */
-                    &Task3,      /* Task handle to keep track of created task */
-                    1);          /* pin task to core 1 */
-
-
-//create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
-xTaskCreatePinnedToCore(
-    Task4code,   /* Task function. */
-    "Task4",     /* name of task. */
-    10000,       /* Stack size of task */
-    NULL,        /* parameter of the task */
-    1,           /* priority of the task */
-    &Task4,      /* Task handle to keep track of created task */
-    0);          /* pin task to core 1 */
-
-
-//create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
-xTaskCreatePinnedToCore(
-    Task5code,   /* Task function. */
-    "Task5",     /* name of task. */
-    712,       /* Stack size of task */
-    NULL,        /* parameter of the task */
-    1,           /* priority of the task */
-    &Task5,      /* Task handle to keep track of created task */
-    0);          /* pin task to core 1 */
 }
 
 
@@ -316,36 +255,11 @@ xTaskCreatePinnedToCore(
 void loop(){
   vTaskDelay(10 / portTICK_RATE_MS);
 	 cleanClients();
-#if defined(PLC_IOT_BRIDGE) || defined(IOT_PULSE_X)
-    if(configMode_enable){
-      pixel_configEn();
-    }
-    else{
-            if(wifiStarted){
-
-              if(wifiIPgot){
-
-                if(tbConnected){
-                    rainbow(5);
-                }
-                
-                else{
-                    pixel_server_unreacheble();
-                }
-
-              }
-              else{
-                Serial.println("no ip");
-                    pixel_no_ip();
-              }          
-          }
-          else{
-                
-                pixel_noWifi();
-          }
-    }
-   
-#endif 
+	 // The whole connectivity state machine (connecting / WiFi up / cloud up /
+	 // OTA) is now one pixel driven by core/led_status. It replaces the pixelx
+	 // block that used to live here — which was a no-op anyway, since pixelx.cpp
+	 // locally redefines NUM_LEDS to 0 and RGB_LED_PIN to 0.
+	 led_status_tick();   // renders the status pixel; reads cached flags only
 }
 
 

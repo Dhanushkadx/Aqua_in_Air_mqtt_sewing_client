@@ -13,7 +13,7 @@
 #include "ConfigManager.h"
 #include <WiFi.h>
 #include "TimerSW.h"
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include "clockConfig.h"
 #include <ArduinoJson.h>
 #include <PubSubClient.h>

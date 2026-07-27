@@ -1,6 +1,6 @@
 {
   "wifissid_ap": "",
-  "wifissid_sta": "IoT-2",
+  "wifissid_sta": "IoT",
   "wifipass_ap": "",
   "wifipass_sta": "welcome@2026",
   "server_url": "10.229.23.252",

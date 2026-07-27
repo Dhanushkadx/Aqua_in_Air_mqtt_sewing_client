@@ -7,7 +7,7 @@
 #include "config.h"
 #include "web_socket.h"
 #include <Arduino.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include "ConfigManager.h"
@@ -22,11 +22,8 @@
 
 
 
-extern IPAddress local_IP;
-extern IPAddress gateway;
-extern IPAddress subnet;
-extern IPAddress primaryDNS;
-extern IPAddress secondaryDNS;
+// The static-IP globals, initWiFi_STA() and the WiFiStation* event handlers are
+// declared by core/wifi_com.h now — this header no longer speaks for the STA link.
 extern long previousMillis;
 extern long interval;
 extern const int HTTP_PORT;
@@ -42,17 +39,11 @@ void cleanClients();
 void initWebSocket();
 void initWebServer();
 void initWiFi_AP();
-void initWiFi_STA();
 
-void initSPIFFS();
 void initWebServerTimers();
 void onRootRequest(AsyncWebServerRequest *request);
 void onGetRequest(AsyncWebServerRequest *request);
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-
-void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info);  
-void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info);
 
 #endif
 
