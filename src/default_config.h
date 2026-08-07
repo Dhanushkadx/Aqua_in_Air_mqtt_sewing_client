@@ -25,8 +25,8 @@
 #define DEFAULT_TOPIC_ROOT   "aquasew"                                  // topic prefix
 #define DEFAULT_MQTT_HOST    "j0117d13.ala.asia-southeast1.emqxsl.com"  // EMQX Cloud, TLS
 #define DEFAULT_MQTT_PORT    8883
-#define DEFAULT_MQTT_USER    "gsmesp32"
-#define DEFAULT_MQTT_PASS    "12345"
+#define DEFAULT_MQTT_USER    "Aqua"
+#define DEFAULT_MQTT_PASS    "aqua123"
 
 // ── WiFi STA seed credentials — THE single source of truth ────────────────────
 // Seeds /wifi.json on first boot (wifi_creds.cpp), which is the store the STA

@@ -19,6 +19,7 @@
 #include "core/OTA.h"
 #include "core/aquasew_topics.h"
 #include "core/domain_cmd.h"
+#include "core/counter_persist.h"
 #include "sewing_cmd.h"
 #include "sewing_tele.h"
 #include "sewing_context.h"
@@ -128,6 +129,10 @@ void Task2code( void * pvParameters ){
    fn_power_on();// count power on time
    sensor_scan();// scan inputs
 
+   // Persist the counters: power-loss save (INT) + 60 s dirty-gated periodic.
+   // After sensor_scan() so it sees this iteration's increments.
+   counter_persist_tick();
+
    // Task2 owns every counter and machine-state flag, so it is also what
    // publishes them. Nothing crosses tasks except the finished JSON.
    sewing_tele_tick();  // outbound — build + enqueue telemetry + events
@@ -149,7 +154,7 @@ void setup() {
   pinMode(PIN_ONLINE,OUTPUT);
   digitalWrite(PIN_ONLINE,LOW);
   pinMode(PIN_PROGRAM,INPUT_PULLUP);
-  pinMode(PIN_LED_PROG,OUTPUT);
+  pinMode(PIN_LED_WIFI,OUTPUT);
   pinMode(PIN_LED_FAULT,OUTPUT);
 
   
@@ -186,6 +191,7 @@ void setup() {
   sprintf(device_id_macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   ConfigManager :: loadSystemData(structSysData);
+  counter_persist_init();   // seed save-shadow from loaded counters + arm power-fail ISR
   initWebServerTimers();
   // No data mutex any more: structSysData and the machine-state flags are
   // written AND read only by Task2 (single-writer), and the only thing crossing

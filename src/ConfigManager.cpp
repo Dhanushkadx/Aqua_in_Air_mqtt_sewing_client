@@ -248,97 +248,75 @@ void ConfigManager::writeDefaultSystemConfig() {
 	Serial.println(F("Default system config file written."));
 }
 
+// Counters are persisted to NVS, not a LittleFS JSON file. NVS packs many small
+// updates into a page before it has to erase, so the 1-minute periodic save plus
+// the power-loss save (counter_persist.cpp) cost almost nothing in flash wear,
+// and each write is fast enough to finish inside the super-cap hold-up window on
+// a power drop. The old LittleFS /system_data.json is read ONCE for migration
+// (loadSystemData) and never written again.
+static const char* NVS_COUNTERS_NS = "counters";
+
 void ConfigManager::saveSystemData(const systemDataTypedef_struct &config) {
-	File configFile = LittleFS.open("/system_data.json", FILE_WRITE);
-	if (!configFile) {
-		Serial.println("Failed to open system config file for writing.");
+	Preferences p;
+	if (!p.begin(NVS_COUNTERS_NS, false)) {   // read-write
+		Serial.println("saveSystemData: NVS open failed");
 		return;
 	}
-
-	// The ABSOLUTE counters are what gets persisted now. Previously this file
-	// stored only the D*/T* variants and never the absolute ones, so a reboot
-	// silently zeroed lifetime production — the opposite of what we want from a
-	// monotonic counter that ThingsBoard windows.
-	StaticJsonDocument<256> doc;
-	doc["productionCounter"] = config.productionCounter;
-	doc["powerTime"]         = config.powerTime;
-	doc["runTime"]           = config.runTime;
-	doc["count_total"]       = config.count_total;
-
-	// Serialize the JSON document to the file.
-	serializeJson(doc, configFile);
-
-	configFile.close();
-	Serial.println("System data saved.");
+	p.putUInt("prod",  config.productionCounter);
+	p.putUInt("power", config.powerTime);
+	p.putUInt("run",   config.runTime);
+	p.putUInt("ctot",  config.count_total);
+	p.putUChar("ver", 1);   // presence marker for the one-time migration in load
+	p.end();
+	Serial.println("System data saved (NVS).");
 }
 
 void ConfigManager::loadSystemData(systemDataTypedef_struct &strData) {
-	bool file_creat = false;
-	if (LittleFS.exists("/system_data.json")) {
-		Serial.println("system_data.json exists");
-		} else {
-		Serial.println("system_data.json does not exist");
-		file_creat = true;
+	Preferences p;
+	p.begin(NVS_COUNTERS_NS, true);           // read-only
+	uint8_t present = p.getUChar("ver", 0);   // 0 = NVS never written on this device
+	if (present) {
+		strData.productionCounter = p.getUInt("prod",  0);
+		strData.powerTime         = p.getUInt("power", 0);
+		strData.runTime           = p.getUInt("run",   0);
+		strData.count_total       = p.getUInt("ctot",  0);
+		p.end();
+		Serial.print(F("Production counter: ")); Serial.println(strData.productionCounter);
+		Serial.print(F("Power on time: "));      Serial.println(strData.powerTime);
+		Serial.print(F("Run time: "));           Serial.println(strData.runTime);
+		Serial.print(F("Session count: "));      Serial.println(strData.count_total);
+		Serial.println("System Data loaded (NVS).");
+		return;
 	}
-	
-	if (file_creat)
-	{
-		file_creat = false;
-		writeDefaultSystemData();
-	}
-	
-	
+	p.end();
+
+	// First boot on this build: seed NVS from the legacy LittleFS counters (if the
+	// file exists) so a field device keeps its lifetime odometer across the update,
+	// then write the seed into NVS so this path runs only once.
+	strData.productionCounter = 0;
+	strData.powerTime         = 0;
+	strData.runTime           = 0;
+	strData.count_total       = 0;
+
 	File configFile = LittleFS.open("/system_data.json", FILE_READ);
-	if (!configFile) {
-		Serial.println("Failed to open system data file for reading after creating default.");
-		return;
-	}
-
-	// Create a JSON document and deserialize the system config data from the file to it.
-	StaticJsonDocument<1256> doc;
-	DeserializationError error = deserializeJson(doc, configFile);
-	if (error) {
-		Serial.println("Failed to deserialize system data.");
+	if (configFile) {
+		StaticJsonDocument<256> doc;
+		if (!deserializeJson(doc, configFile)) {
+			strData.productionCounter = doc["productionCounter"] | 0;
+			strData.powerTime         = doc["powerTime"]         | 0;
+			strData.runTime           = doc["runTime"]           | 0;
+			strData.count_total       = doc["count_total"]       | 0;
+			Serial.println(F("System Data migrated LittleFS -> NVS."));
+		}
 		configFile.close();
-		return;
+	} else {
+		Serial.println(F("System Data: no NVS, no legacy file -> zeros."));
 	}
-
-	// `| 0` so a file written by an older build — which had none of these keys —
-	// loads as zero rather than garbage.
-	strData.productionCounter = doc["productionCounter"] | 0;
-	strData.powerTime         = doc["powerTime"]         | 0;
-	strData.runTime           = doc["runTime"]           | 0;
-	strData.count_total       = doc["count_total"]       | 0;
-
-	Serial.print(F("Production counter: "));
-	Serial.println(strData.productionCounter);
-	Serial.print(F("Power on time: "));
-	Serial.println(strData.powerTime);
-	Serial.print(F("Run time: "));
-	Serial.println(strData.runTime);
-	Serial.print(F("Session count: "));
-	Serial.println(strData.count_total);
-
-
-	configFile.close();
-	Serial.println("System Data loaded.");
+	saveSystemData(strData);   // persist the seed into NVS
 }
 
 void ConfigManager::writeDefaultSystemData() {
-	File configFile = LittleFS.open("/system_data.json", FILE_WRITE);
-	if (!configFile) {
-		Serial.println("Failed to open system config file for writing.");
-		return;
-	}
-	// Create a JSON document and set default values for the system configuration settings.
-	StaticJsonDocument<256> doc;
-	doc["productionCounter"] = 0;
-	doc["powerTime"]         = 0;
-	doc["runTime"]           = 0;
-	doc["count_total"]       = 0;
-
-	// Serialize the JSON document to the file.
-	serializeJson(doc, configFile);
-	configFile.close();
-	Serial.println("Default system data file written.");
+	systemDataTypedef_struct zero = {0, 0, 0, 0};
+	saveSystemData(zero);
+	Serial.println("Default system data written (NVS).");
 }

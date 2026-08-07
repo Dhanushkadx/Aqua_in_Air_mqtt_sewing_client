@@ -10,6 +10,7 @@
 #endif
 #include <FS.h>
 #include <LittleFS.h>
+#include <Preferences.h>   // counters live in NVS (see saveSystemData/loadSystemData)
 #include "typex.h"
 #include <ArduinoJson.h>
 #include "config.h"

@@ -50,6 +50,13 @@ void fn_power_on(){
 		previousMillis = currentMillis;
 		// Same task as sensor_scan() and sewing_tele_tick() — single writer, no lock.
 		structSysData.powerTime++;
+		// runTime = cumulative SECONDS in the running state, ticked here in the
+		// same 1 s block as powerTime. "running" is derived from production pulses
+		// (input0 sets MC_BUSY), so this needs no separate run-signal opto and the
+		// invariant runTime <= powerTime holds automatically. Matches the backend
+		// contract (change_request_runtime_odometer.txt): monotonic, persisted,
+		// increases only while runtime_state == "running".
+		if (curruntMCstate == MC_BUSY) structSysData.runTime++;
 		//Serial.print("powerTime:");
 		//Serial.println(structSysData.powerTime);
 	}

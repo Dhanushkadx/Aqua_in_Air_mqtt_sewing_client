@@ -514,9 +514,26 @@ void mqtt_setup() {
     Serial.println(F("WiFi MQTT transport ready"));
 }
 
+// Backoff between MQTT (re)connect attempts. Without it, com_loop() hammers
+// connectMQTT() every ~10 ms while the broker is unreachable; each failed TLS
+// attempt allocates then frees large handshake buffers, and on weak WiFi that
+// churn fragments the heap until mbedTLS can't get a contiguous block
+// (-32512 "SSL - Memory allocation failed"). A few seconds between tries lets
+// the heap coalesce and the network recover. First attempt (and a reconnect
+// after a clean drop) still fires immediately — the gate only paces retries.
+static const uint32_t MQTT_RETRY_MS = 5000;
+static uint32_t s_lastMqttAttemptMs = 0;
+
 void com_loop() {
-    if (!wifi_ready) return;
-    if (!client.connected()) { connectMQTT(); return; }   // reconnect (also recovers a paused OTA)
+    if (!wifi_ready) return;                       // only attempt MQTT once WiFi has an IP
+    if (!client.connected()) {
+        uint32_t now = millis();
+        if ((uint32_t)(now - s_lastMqttAttemptMs) >= MQTT_RETRY_MS) {
+            s_lastMqttAttemptMs = now;
+            connectMQTT();                          // (re)connect; also recovers a paused OTA
+        }
+        return;
+    }
 
     client.loop();
     if (ota_mqtt_pending()) ota_mqtt_resume();   // continue a stalled OTA now the link is back

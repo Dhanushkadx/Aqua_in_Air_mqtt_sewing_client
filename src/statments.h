@@ -18,7 +18,8 @@
 extern char macStr[18];
 extern char device_id_macStr[18];
 extern bool wifiStarted;
-extern bool wifiIPgot;
+extern volatile bool wifiIPgot;   // GOT_IP — written on WiFi event task, read on loopTask
+extern volatile bool wifi_assoc;  // associated to AP (may not have IP yet)
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;

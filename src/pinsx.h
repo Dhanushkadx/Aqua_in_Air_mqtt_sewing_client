@@ -22,7 +22,7 @@
     #define RELAY5 19
     #define RELAY6 22
     #define PIN_PROGRAM PIN_INPUT4
-    #define PIN_LED_PROG RELAY2
+    #define PIN_LED_WIFI RELAY2
     #define PIN_DOWNTIME_SWITCH 36
     #define PIN_LED_FAULT RELAY1
     #define PIN_ONLINE RELAY3
@@ -31,6 +31,7 @@
     #define PIN_INPUT3 PIN_DOWNTIME_SWITCH
     #define PIN_INPUT4 39
     #define PIN_RS485_FLCTRL 5
+    #define POWER_LOSS_PIN 21     // super-cap power-fail line: idles LOW, driven HIGH on power drop (RISING)
     #define thermoDO 12
     #define thermoCS 15
     #define thermoCLK 14
@@ -51,7 +52,7 @@
     #define PIN_INPUT2 21  // 22
     #define PIN_INPUT3 PIN_DOWNTIME_SWITCH
     #define PIN_PROGRAM 18
-    #define PIN_LED_PROG 5
+    #define PIN_LED_WIFI 5
     #define thermoDO 16
     #define thermoCS 26
     #define thermoCLK 25
@@ -63,7 +64,7 @@
     // Default pin mappings (for the vero board)
     #define PIN_ONLINE 13  // For vero board
     #define PIN_PROGRAM 33
-    #define PIN_LED_PROG 2
+    #define PIN_LED_WIFI 2
     #define PIN_DOWNTIME_SWITCH 27
     #define PIN_LED_FAULT 14
     // #define PIN_INPUT4 33 // Unused or commented for now
@@ -74,6 +75,12 @@
     #define thermoCS 26
     #define thermoCLK 25
     #define BIN_BUZZER 4
+    // Vero board has no WS2812 status pixel (WiFi state blinks on PIN_LED_WIFI,
+    // MQTT/cloud status on PIN_ONLINE).
+    // Stub the pixel macros so led_driver compiles as a no-op — 0 LEDs means its
+    // loops never run and nothing is driven. Matches the legacy pixelx behavior.
+    #define RGB_LED_PIN 0
+    #define NUM_LEDS 0
 
 #endif
 

@@ -34,12 +34,17 @@ int status = WL_IDLE_STATUS;
 bool wifiStarted = false;
 // Owned here now (was web_server.cpp). Task4's LED pattern and loop()'s pixel
 // state machine both read it, so it must track GOT_IP, not just association.
-bool wifiIPgot = false;
+// volatile: written on the WiFi event task, read on loopTask (single writer,
+// single-byte flag — atomic, no lock; volatile just guarantees a fresh read).
+volatile bool wifiIPgot = false;
+// Associated to the AP but not necessarily IP'd yet — the middle state the VERO
+// status LED shows as a double-blink. Same cross-task single-writer contract.
+volatile bool wifi_assoc = false;
 
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
 	Serial.println(F("Connected to AP successfully!"));
-
+	wifi_assoc = true;
   }
   
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
@@ -70,6 +75,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
 		wifiStarted = false;
 	}
 	wifiIPgot = false;
+	wifi_assoc = false;   // dropped the AP — back to fast-blink "connecting"
 			if (Timer_WIFIreconnect.Timer_run()) {
 				// Persist the counters before the restart — an unsaved
 				// productionCounter is real lost production for the plant.

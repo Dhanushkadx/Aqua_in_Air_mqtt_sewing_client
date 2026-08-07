@@ -22,6 +22,40 @@ static bool          s_ota_frozen = false;   // pixel rendered once for OTA, the
 
 void led_status_set_ota(bool active) { s_ota_active = active; }
 
+#ifdef VERO_BOARD
+// Vero has no WS2812 pixel — two plain LEDs carry the status instead:
+//   PIN_LED_WIFI = WiFi state (blink patterns, from millis() so they stay smooth
+//                  regardless of call rate):
+//                    fast blink   = connecting (not yet associated)
+//                    double blink = joined AP, waiting for DHCP (no IP)
+//                    slow flash   = IP obtained (running)
+//   PIN_ONLINE   = MQTT/cloud link: solid ON while connected to the broker, off
+//                  otherwise.
+// All three flags are single-writer (WiFi event task / MQTT task), read here on
+// loopTask — see wifi_com.cpp / wifi_mqtt.cpp.
+extern volatile bool wifi_assoc;   // wifi_com.cpp
+extern volatile bool wifiIPgot;    // wifi_com.cpp
+
+static void vero_status_led_tick() {
+    uint32_t ms = millis();
+
+    // WiFi LED
+    bool wifi_on;
+    if (wifiIPgot) {
+        wifi_on = (ms % 2000) < 150;                     // slow: brief flash / 2 s
+    } else if (wifi_assoc) {
+        uint32_t t = ms % 1200;                          // double blink
+        wifi_on = (t < 120) || (t >= 240 && t < 360);
+    } else {
+        wifi_on = (ms % 200) < 100;                      // fast blink
+    }
+    digitalWrite(PIN_LED_WIFI, wifi_on ? HIGH : LOW);      // active-high (LOW = off)
+
+    // MQTT/cloud LED — solid while connected to the broker.
+    digitalWrite(PIN_ONLINE, g_mqtt_online ? HIGH : LOW);
+}
+#endif // VERO_BOARD
+
 // ═══ Single onboard-LED policy ════════════════════════════════════════════════
 // This board carries the whole CONNECTIVITY state machine on one pixel (+ OTA
 // via the freeze path in led_status_tick). Convention: BLINK = working on it;
@@ -43,6 +77,14 @@ void led_status_begin() {
 }
 
 void led_status_tick() {
+#ifdef VERO_BOARD
+    // Vero: WiFi status on PIN_LED_WIFI + MQTT status on PIN_ONLINE. Driven every
+    // call (a digitalWrite is instant and, unlike NeoPixel show(), never disables
+    // interrupts, so it is safe even during an OTA). No WS2812 on this board, so
+    // nothing below applies.
+    vero_status_led_tick();
+    return;
+#endif
     // During an OTA the firmware streams bytes over the live link. NeoPixel
     // show() disables interrupts to bit-bang the WS2812 timing, and doing that
     // repeatedly can drop link RX bytes → transfer stalls. So freeze the pixel

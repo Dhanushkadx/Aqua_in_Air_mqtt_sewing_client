@@ -6,6 +6,7 @@
 #include "core/aquasew_topics.h"
 #include "default_config.h"
 #include <WiFi.h>
+#include <esp_system.h>   // esp_reset_reason() for the boot frame
 #include <stdarg.h>
 
 // Publish pacing. structSysConfig.updates_interval is operator-configurable via
@@ -23,6 +24,24 @@ static bool     s_wasOnline       = false;
 // Machine state in PrimeFlow's runtime_state vocabulary (doc/11C). The internal
 // eMC_state maps busy->running; idle and fault pass through. support/downtime are
 // added later by the mechanic layer — additive, no remap here.
+// Why the ESP last reset — emitted once on the boot event so the backend can
+// tell a counter gap caused by a power loss (covered by the power-fail save)
+// from one caused by a crash/watchdog (which the save cannot catch).
+static const char* reset_reason_str() {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:   return "power_on";
+        case ESP_RST_EXT:       return "ext";
+        case ESP_RST_SW:        return "sw_restart";
+        case ESP_RST_PANIC:     return "panic";
+        case ESP_RST_INT_WDT:   return "int_wdt";
+        case ESP_RST_TASK_WDT:  return "task_wdt";
+        case ESP_RST_WDT:       return "wdt";
+        case ESP_RST_BROWNOUT:  return "brownout";
+        case ESP_RST_DEEPSLEEP: return "deepsleep";
+        default:                return "unknown";
+    }
+}
+
 static const char* runtime_state_str() {
     switch (curruntMCstate) {
         case MC_BUSY:  return "running";
@@ -95,7 +114,9 @@ void sewing_tele_tick() {
     // boot event — once, on the first tick that finds the link up (so the
     // envelope + any restored manifest context are already loaded).
     if (!s_bootEmitted && g_mqtt_online) {
-        sewing_event_emit("boot", nullptr);
+        char bootpl[64];
+        snprintf(bootpl, sizeof(bootpl), "{\"reset_reason\":\"%s\"}", reset_reason_str());
+        sewing_event_emit("boot", bootpl);
         s_bootEmitted = true;
         s_wasOnline   = true;
     }
