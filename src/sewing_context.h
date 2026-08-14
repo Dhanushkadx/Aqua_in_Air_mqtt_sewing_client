@@ -39,6 +39,12 @@ void sewing_context_tick();
 // checks this before bumping count_total. Same-task read (Task2).
 bool sewing_context_counting_enabled();
 
+// Monotonic session sequence — bumped each time a NEW manifest opens (R1). The
+// Modbus input path watches this to rebaseline count_total (pcs - baseline at
+// manifest open), since in Modbus mode the counter comes from the PLC, not the
+// per-piece increment sewing_context resets. Task2 read.
+uint32_t sewing_context_session_seq();
+
 // Append the 7-id context envelope as JSON fields — no braces, no leading or
 // trailing comma: "business_id":..,"plant_id":..,..,"operator_id":null
 // Unset ids are emitted as null (Q3). Used by both telemetry and events so the

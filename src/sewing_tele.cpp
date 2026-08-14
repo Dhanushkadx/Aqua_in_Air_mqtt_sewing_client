@@ -5,6 +5,7 @@
 #include "core/wifi_mqtt.h"
 #include "core/aquasew_topics.h"
 #include "default_config.h"
+#include "pinsx.h"          // PIN_INPUT1 — raw production-input level diagnostic
 #include <WiFi.h>
 #include <esp_system.h>   // esp_reset_reason() for the boot frame
 #include <stdarg.h>
@@ -80,14 +81,17 @@ static void publish_tele() {
     // 7-id PrimeFlow context envelope first, so every frame is self-attributing.
     int n = bappend(buf, 0, sizeof(buf), "{");
     n += sewing_context_append_ids(buf + n, sizeof(buf) - n);
+    // input_mode is echoed live (0=GPIO, 1=Modbus) so the backend sees the mode
+    // the device is ACTUALLY running, not just what was requested — refreshed
+    // every frame and immediately after a set_input_mode / machine_config change.
     n = bappend(buf, n, sizeof(buf),
         ",\"msgTyp\":\"update\",\"id\":\"%s\",\"mac\":\"%s\",\"fw_ver\":\"" FW_VER "\""
-        ",\"runtime_state\":\"%s\""
+        ",\"runtime_state\":\"%s\",\"input_mode\":%u"
         ",\"count_total\":%u,\"ProductionCount\":%u,\"PowerOn\":%u,\"runTime\":%u"
-        ",\"ip\":\"%s\",\"rssi\":%d,\"upTime\":%lu",
-        AQ_DEVICE_MAC, macStr, runtime_state_str(),
+        ",\"ip\":\"%s\",\"rssi\":%d,\"upTime\":%lu,\"run_input\":%d",
+        AQ_DEVICE_MAC, macStr, runtime_state_str(), (unsigned)structSysConfig.input_mode,
         count_tot, production, powerT, runT,
-        ip.c_str(), wrssi, upTime);
+        ip.c_str(), wrssi, upTime, (int)digitalRead(PIN_INPUT1));
 
 #ifdef THERMO_OK
     n = bappend(buf, n, sizeof(buf), ",\"temp\":%.1f", get_temperatureC());

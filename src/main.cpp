@@ -20,6 +20,7 @@
 #include "core/aquasew_topics.h"
 #include "core/domain_cmd.h"
 #include "core/counter_persist.h"
+#include "core/modbus_input.h"
 #include "sewing_cmd.h"
 #include "sewing_tele.h"
 #include "sewing_context.h"
@@ -129,6 +130,14 @@ void Task2code( void * pvParameters ){
    fn_power_on();// count power on time
    sensor_scan();// scan inputs
 
+   // Modbus input source: mirror the PLC's counters over the GPIO-derived ones.
+   // No-op in GPIO mode / on boards without RS485.
+   modbus_input_apply();
+
+   // Derive running/idle from the production counter advancing — after BOTH the
+   // GPIO scan and the Modbus mirror have set it, so one rule serves both modes.
+   runtime_state_update();
+
    // Persist the counters: power-loss save (INT) + 60 s dirty-gated periodic.
    // After sensor_scan() so it sees this iteration's increments.
    counter_persist_tick();
@@ -207,6 +216,10 @@ void setup() {
   topics_init();
   mqtt_setup();
 
+  // RS485 Modbus poll task (Modbus input source + read/write RPC bus owner).
+  // No-op on boards without HAS_MODBUS. After config load so input_mode is known.
+  modbus_input_init();
+
  GPIO_array[0].GPIOpin = PIN_INPUT1;
  GPIO_array[1].GPIOpin = PIN_INPUT2;
  GPIO_array[2].GPIOpin = PIN_INPUT3;
@@ -215,7 +228,7 @@ void setup() {
  // Production Count
  GPIO_array[0].fn_FALL_EDGE = fn_productionCounter;
  GPIO_array[0].fn_LOW_CONTINU = NULL;
- GPIO_array[0].fn_HIGH_CONTINU = fn_production_idle_detect;
+ GPIO_array[0].fn_HIGH_CONTINU = NULL;   // idle now from runtime_state_update(), not GPIO level
  GPIO_array[0].fn_RISE_EDGE = fn_productionCounter_idle_detect_timer_reset;
  // Run Timer
  GPIO_array[1].fn_FALL_EDGE = NULL; //fn_runTime_count_reset;

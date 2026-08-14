@@ -27,6 +27,10 @@ typedef struct systemConfig{
 	uint32_t wifi_reconnect_time;
 	int yesterDay;
 	uint16_t preScale;
+	// Production input source: 0 = GPIO sensors (opto pulses), 1 = Modbus PLC
+	// (mirror the machine's own counters over RS485). Selectable at runtime via
+	// the web UI / RPC. Only honoured on HAS_MODBUS boards.
+	uint8_t input_mode;
 	char friendly_name[50];
 	char location[50];
 	

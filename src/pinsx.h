@@ -32,6 +32,13 @@
     #define PIN_INPUT4 39
     #define PIN_RS485_FLCTRL 5
     #define POWER_LOSS_PIN 21     // super-cap power-fail line: idles LOW, driven HIGH on power drop (RISING)
+    // RS485 Modbus RTU to the machine PLC (SUPREM). HAS_MODBUS gates the whole
+    // modbus_input module + the Modbus input-source path; boards without it (VERO)
+    // never compile the RS485 task, so GPIO25/26 stay free for their thermo pins.
+    #define HAS_MODBUS
+    #define MODBUS_RX_PIN  25
+    #define MODBUS_TX_PIN  26
+    #define MODBUS_DIR_PIN PIN_RS485_FLCTRL   // RS485 DR/RE direction (GPIO5)
     #define thermoDO 12
     #define thermoCS 15
     #define thermoCLK 14

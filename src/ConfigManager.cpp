@@ -41,6 +41,7 @@ void ConfigManager::saveSystemConfig(const systemConfigTypedef_struct &config) {
 	doc["http_password"] = config.http_password;
 	doc["realTime"] = config.realTime;
 	doc["preScale"] = config.preScale;
+	doc["input_mode"] = config.input_mode;
 
 	doc["serial_no"] = docR["serial_no"];
 	doc["assest_no"] = docR["assest_no"];
@@ -126,6 +127,7 @@ void ConfigManager::loadSystemConfig(systemConfigTypedef_struct &config) {
 	config.yesterDay = doc["yesterDay"];
 	config.realTime = doc["realTime"];
 	config.preScale = doc["preScale"];
+	config.input_mode = doc["input_mode"] | DEFAULT_INPUT_MODE;   // 0=GPIO, 1=Modbus
 	strcpy(config.friendly_name,doc["operation_name"]);
 	strcpy(config.location,doc["device_location"]);
 	
@@ -233,6 +235,7 @@ void ConfigManager::writeDefaultSystemConfig() {
 	doc["operation_name"] = DEFAULT_OPERATION_NAME;
 	doc["machine_serial"] = DEFAULT_MACHINE_SERIAL;
 	doc["preScale"] = DEFAULT_PRESCALE;
+	doc["input_mode"] = DEFAULT_INPUT_MODE;
 
 	// Calculate the required size to store the serialized JSON data
 	//size_t jsonSize = measureJson(doc);

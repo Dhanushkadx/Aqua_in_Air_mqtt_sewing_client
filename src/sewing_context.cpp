@@ -153,6 +153,9 @@ void sewing_event_emit(const char* event_type, const char* payload_json) {
     Serial.printf("event: %s\n", event_type);
 }
 
+static uint32_t s_session_seq = 0;
+uint32_t sewing_context_session_seq() { return s_session_seq; }
+
 bool sewing_context_counting_enabled() { return s_counting; }
 
 // ── Block application (Task2) ──────────────────────────────────────────────────
@@ -174,6 +177,21 @@ static void apply_machine_config(const char* json) {
     strlcpy(s_ctx.plant_id,    b["plant_id"]    | s_ctx.plant_id,    ID_LEN);
     strlcpy(s_ctx.layout_id,   b["layout_id"]   | s_ctx.layout_id,   ID_LEN);
     strlcpy(s_ctx.machine_id,  b["machine_id"]  | s_ctx.machine_id,  ID_LEN);
+
+    // input_mode is a provisioning fact ("this machine is a PLC/Modbus type").
+    // ABSENT means LEAVE UNCHANGED (backend interop condition) — the manifest-push
+    // widget writes machine_config without this field on most devices, and an
+    // absent-means-0 would silently revert a SUPREM to GPIO. Only an explicit
+    // value changes it; when it does, persist so it survives reboot.
+    if (b.containsKey("input_mode")) {
+        uint8_t m = (b["input_mode"].as<int>() != 0) ? 1 : 0;
+        if (m != structSysConfig.input_mode) {
+            structSysConfig.input_mode = m;
+            ConfigManager::saveSystemConfig(structSysConfig);
+            Serial.printf("context: machine_config input_mode -> %u (persisted)\n", m);
+        }
+    }
+
     Serial.printf("context: machine_config applied — machine_id='%s' plant='%s'\n",
         s_ctx.machine_id, s_ctx.plant_id);
     context_save();
@@ -213,6 +231,7 @@ static void apply_active_manifest(const char* json) {
         // Reset the session counter — same task (Task2) as the increment, so this
         // is the single-writer reset, not a cross-task race.
         structSysData.count_total = 0;
+        s_session_seq++;                 // signal Modbus path to rebaseline
         ConfigManager::saveSystemData(structSysData);
         context_save();
         Serial.printf("context: NEW manifest '%s' session '%s' (R1) — count_total=0\n",

@@ -21,6 +21,12 @@
 
 #include "pinsx.h"   // board-selection macro (IOT_PULSE_X, ...) for the model block
 
+// Precise build id (hw_caps.build) — injected by scripts/git_rev.py. Fallback so
+// the firmware still compiles if the pre-build hook can't run (no git, etc.).
+#ifndef GIT_REV
+#define GIT_REV "unknown"
+#endif
+
 // ── MQTT transport (all AquaSew devices share this broker) ────────────────────
 #define DEFAULT_TOPIC_ROOT   "aquasew"                                  // topic prefix
 #define DEFAULT_MQTT_HOST    "j0117d13.ala.asia-southeast1.emqxsl.com"  // EMQX Cloud, TLS
@@ -63,6 +69,7 @@
 #define DEFAULT_OPERATION_NAME     "any operation"
 #define DEFAULT_MACHINE_SERIAL     "000000000000"
 #define DEFAULT_PRESCALE           1               // production pulses per count
+#define DEFAULT_INPUT_MODE         0               // 0 = GPIO sensors, 1 = Modbus PLC
 
 // ── Per-PCB-board values ──────────────────────────────────────────────────────
 // Board model string reported in hw_caps (attr/pub). Keyed off the board macro

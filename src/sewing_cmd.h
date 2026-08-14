@@ -32,6 +32,7 @@ enum {
     SEW_CMD_SET_PRODUCTION = 1,  // arg = new productionCounter (device-swap only)
     SEW_CMD_PUBLISH_NOW,         // force a telemetry frame on the next tick
     SEW_CMD_SAVE_AND_RESTART,    // persist counters to flash, then reboot
+    SEW_CMD_SET_INPUT_MODE,      // arg = input_mode (0=GPIO, 1=Modbus); persists config
 };
 
 // Drain and apply everything pending. Call from Task2 only — draining from two

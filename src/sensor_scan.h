@@ -17,6 +17,12 @@ extern Struct_GPIO_INFO GPIO_array[];
 
 void sensor_scan();
 
+// Central running/idle derivation, used in BOTH input modes: running while the
+// production counter keeps advancing, idle after RUN_IDLE_TIMEOUT_MS with no new
+// piece, unless the GPIO fault switch has latched MC_FAULT. Deliberately NOT
+// level-based on a GPIO — idle level differs per machine (some pull the line low
+// when idle, some high), so a raw-level read gives false results. Task2 only.
+void runtime_state_update();
 
 void fn_power_on();
 

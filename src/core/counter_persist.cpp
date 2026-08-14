@@ -42,6 +42,11 @@ void counter_persist_init() {
 }
 
 void counter_persist_tick() {
+    // Modbus mode: the machine PLC owns and persists the counters, and Task2
+    // overwrites structSysData from the PLC every loop — so there is nothing of
+    // ours to save (they're re-read from the PLC on boot). Skip all persistence.
+    if (structSysConfig.input_mode == 1) return;
+
 #ifdef POWER_LOSS_PIN
 	// Power-fail: save immediately, once. No deep-sleep — if the rail is truly
 	// gone the chip dies right after the write (NVS/LittleFS writes are power-safe

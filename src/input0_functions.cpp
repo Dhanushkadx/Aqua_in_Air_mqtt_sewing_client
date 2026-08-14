@@ -28,14 +28,10 @@ void fn_productionCounter(int duration){
 		// Session counter only advances while a manifest is open (R3 stops it on
 		// close). With no manifest at all it counts too — standalone behaviour.
 		if (sewing_context_counting_enabled()) structSysData.count_total++;
-		Timer_idle_detect.previousMillis = millis();
 		Serial.print(F("  ProductionCount:"));
 		Serial.println(structSysData.productionCounter);
-		if (curruntMCstate != MC_FAULT)
-		{
-			/* code */curruntMCstate = MC_BUSY;
-		}
-		
+		// running/idle is no longer set here — runtime_state_update() derives it
+		// from the counter advancing (both modes). This handler just counts.
 	}
 	
 	

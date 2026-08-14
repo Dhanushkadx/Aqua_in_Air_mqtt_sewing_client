@@ -41,6 +41,26 @@ void sensor_scan(){
 }
 
 
+// No new piece for this long -> idle. Generous enough not to flap between the
+// machine's normal cycles, short enough that a stopped machine is reported idle
+// promptly. Tunable; could move to machine_config later (backend asked).
+#define RUN_IDLE_TIMEOUT_MS 30000
+
+void runtime_state_update(){
+	// Single owner of running/idle for both GPIO and Modbus modes. Reads the
+	// production counter (set by the GPIO pulse handler or by modbus_input_apply)
+	// and calls it running while it advances. Fault is owned by the GPIO downtime
+	// switch (input2) and is never overridden here.
+	static uint32_t prevProd = 0, lastAdvanceMs = 0;
+	static bool     init = false;
+	uint32_t p = structSysData.productionCounter;
+	if (!init)              { prevProd = p; init = true; }   // baseline, not an advance
+	else if (p != prevProd) { prevProd = p; lastAdvanceMs = millis(); }
+	if (curruntMCstate != MC_FAULT)
+		curruntMCstate = (lastAdvanceMs && (uint32_t)(millis() - lastAdvanceMs) < RUN_IDLE_TIMEOUT_MS)
+		                 ? MC_BUSY : IDLE;
+}
+
 void fn_power_on(){
 	static long previousMillis;
 	unsigned long currentMillis = millis();

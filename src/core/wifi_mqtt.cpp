@@ -17,6 +17,7 @@
 #include "OTA.h"
 #include "wifi_creds.h"     // for the enter_portal RPC handler below
 #include "domain_cmd.h"     // RPCs that mutate domain state post, never write
+#include "modbus_input.h"   // modbus_read / modbus_write RPC bridge
 #include "../statments.h"   // structSysConfig — hw_caps identity on publish_info()
 #include "../sewing_cmd.h"  // SEW_CMD_* ids for the domain RPC branches
 #include "../default_config.h"
@@ -247,6 +248,65 @@ static void handle_rpc_message(const char* json) {
         publish_direct(AQ_TOPIC_RPC_RES, ack, false);
         delay(500);
         ESP.restart();
+
+    } else if (strcmp(method, "set_input_mode") == 0) {
+        // Production input source selector: 0 = GPIO sensors, 1 = Modbus PLC.
+        // Posted to Task2 (persists the config there), like set_counter.
+        //   params {"mode":0|1}
+        int mode = params["mode"] | -1;
+        if (mode != 0 && mode != 1) {
+            success = false;
+            Serial.printf("set_input_mode: rejected — mode=%d\n", mode);
+        } else {
+            success = domain_cmd_post(SEW_CMD_SET_INPUT_MODE, mode);
+            Serial.printf("set_input_mode: %d -> %s\n", mode, success ? "queued" : "QUEUE FULL");
+        }
+
+    } else if (strcmp(method, "modbus_read") == 0) {
+        // Generic holding-register read from a TB widget — Modbus mode only. The
+        // read runs on the modbus task (the bus owner) and it publishes the
+        // rpc/res with the values, so we just queue it and return.
+        //   params {"address":<n>,"length":<n>}
+        char mres[80];
+#ifdef HAS_MODBUS
+        if (structSysConfig.input_mode != 1) {
+            snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"not_modbus_mode\"}", reqId);
+            mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+            return;
+        }
+        uint16_t addr = params["address"] | 0;
+        uint16_t len  = params["length"]  | 1;
+        if (!modbus_rpc_read(reqId, addr, len)) {
+            snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"busy\"}", reqId);
+            mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+        }
+#else
+        snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"no_modbus\"}", reqId);
+        mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+#endif
+        return;
+
+    } else if (strcmp(method, "modbus_write") == 0) {
+        // Single holding-register write from a TB widget — Modbus mode only.
+        //   params {"address":<n>,"value":<n>}
+        char mres[80];
+#ifdef HAS_MODBUS
+        if (structSysConfig.input_mode != 1) {
+            snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"not_modbus_mode\"}", reqId);
+            mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+            return;
+        }
+        uint16_t addr = params["address"] | 0;
+        uint16_t val  = params["value"]   | 0;
+        if (!modbus_rpc_write(reqId, addr, val)) {
+            snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"busy\"}", reqId);
+            mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+        }
+#else
+        snprintf(mres, sizeof(mres), "{\"reqId\":\"%d\",\"success\":false,\"error\":\"no_modbus\"}", reqId);
+        mqtt_tx_enqueue(AQ_TOPIC_RPC_RES, mres, false);
+#endif
+        return;
 
     } else {
         Serial.printf("RPC: unknown method '%s'\n", method);
@@ -548,11 +608,23 @@ void publish_info() {
     // Static identity + capability, published once per connect as a client
     // attribute. `inputs` is the number of monitored machine lines this board
     // scans (sensor_pin_count), the sewing analogue of PrimeHive's relay count.
-    char buf[240];
+    char buf[320];
+    // has_modbus: this build supports the Modbus input source (RS485 board +
+    // feature compiled in). The widget shows the input-mode toggle only when true;
+    // an OLDER firmware omits the key entirely, so the widget must treat absent as
+    // false. build: exact commit id (GIT_REV), distinct from the human fw_ver.
+#ifdef HAS_MODBUS
+    const char* has_mb = "true";
+#else
+    const char* has_mb = "false";
+#endif
     snprintf(buf, sizeof(buf),
-        "{\"hw_caps\":{\"model\":\"" DEFAULT_BOARD_MODEL "\",\"inputs\":%u,\"fw_ver\":\"" FW_VER "\""
+        "{\"hw_caps\":{\"model\":\"" DEFAULT_BOARD_MODEL "\",\"inputs\":%u"
+        ",\"fw_ver\":\"" FW_VER "\",\"build\":\"" GIT_REV "\""
+        ",\"has_modbus\":%s,\"input_mode\":%u"
         ",\"friendly_name\":\"%s\",\"location\":\"%s\"}}",
-        (unsigned)sensor_pin_count, structSysConfig.friendly_name, structSysConfig.location);
+        (unsigned)sensor_pin_count, has_mb, (unsigned)structSysConfig.input_mode,
+        structSysConfig.friendly_name, structSysConfig.location);
     mqtt_tx_enqueue(AQ_TOPIC_ATTR_PUB, buf, false);
 }
 

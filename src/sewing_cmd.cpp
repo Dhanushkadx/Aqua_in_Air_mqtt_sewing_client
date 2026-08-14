@@ -31,6 +31,16 @@ static void apply_cmd(const DomainCmd& c) {
             sewing_tele_request_publish();
             break;
 
+        case SEW_CMD_SET_INPUT_MODE:
+            // Production input source selector (0 = GPIO, 1 = Modbus). Applied on
+            // Task2 and persisted here (config write off the MQTT task). The modbus
+            // task + Task2's modbus_input_apply() pick up the new value next loop.
+            structSysConfig.input_mode = (uint8_t)(c.arg ? 1 : 0);
+            ConfigManager::saveSystemConfig(structSysConfig);
+            Serial.printf("sewing_cmd: input_mode -> %u (persisted)\n", structSysConfig.input_mode);
+            sewing_tele_request_publish();
+            break;
+
         case SEW_CMD_SAVE_AND_RESTART:
             // Posted by the WiFi disconnect handler after its reconnect timeout.
             // Deliberately done HERE and not there: that handler runs on the
