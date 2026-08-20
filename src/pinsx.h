@@ -12,6 +12,7 @@
 //#define PLC_IOT_BRIDGE  // Comment or Uncomment based on your setup
 #define IOT_PULSE_X  // Uncomment for IOT Pulse X setup
 //#define VERO_BOARD
+//#define IOT_OLD_PCB
 
 #ifdef IOT_PULSE_X
     // Specific pin mappings for IOT_PULSE_X
@@ -86,6 +87,30 @@
     // MQTT/cloud status on PIN_ONLINE).
     // Stub the pixel macros so led_driver compiles as a no-op — 0 LEDs means its
     // loops never run and nothing is driven. Matches the legacy pixelx behavior.
+    #define RGB_LED_PIN 0
+    #define NUM_LEDS 0
+
+#elif defined(IOT_OLD_PCB)
+    // Abandoned early PCB, re-adopted. No modbus, no WS2812 pixel, no power-fail
+    // detect. Status shown on plain LEDs, same scheme as the vero board.
+    #define RELAY1 18
+    #define RELAY2 23
+    #define RELAY3 27
+    #define RELAY4 12
+    #define RELAY5 13
+    #define RELAY6 22
+
+    #define PIN_LED_WIFI 26
+    #define PIN_DOWNTIME_SWITCH 32
+    #define PIN_LED_FAULT 25
+    #define PIN_ONLINE RELAY1              // MQTT/online indicator (drives a ULN output)
+    #define PIN_PROGRAM 15                 // config / enrollment-portal button
+    #define PIN_INPUT1 35  // 19
+    #define PIN_INPUT2 34  // 22
+    #define PIN_INPUT3 PIN_DOWNTIME_SWITCH
+    #define PIN_INPUT4 33
+    // No thermocouple on this board -> thermo pins left undefined (thermo.cpp is
+    // guarded). No pixel -> stub the pixel macros so led_driver is a no-op.
     #define RGB_LED_PIN 0
     #define NUM_LEDS 0
 

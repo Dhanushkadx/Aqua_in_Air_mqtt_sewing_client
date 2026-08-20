@@ -80,6 +80,8 @@
   #define DEFAULT_BOARD_MODEL  "PLC_IOT_BRIDGE"
 #elif defined(VERO_BOARD)
   #define DEFAULT_BOARD_MODEL  "VERO_BOARD"
+#elif defined(IOT_OLD_PCB)
+  #define DEFAULT_BOARD_MODEL  "IOT_OLD_PCB"
 #else
   #define DEFAULT_BOARD_MODEL  "UNKNOWN"
 #endif

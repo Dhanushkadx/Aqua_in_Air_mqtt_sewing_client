@@ -8,6 +8,7 @@
 # Falls back gracefully if git is unavailable so the build never breaks.
 #
 import subprocess
+from datetime import datetime
 Import("env")
 
 def _git(args, fallback):
@@ -19,6 +20,10 @@ def _git(args, fallback):
 
 rev    = _git(["describe", "--always", "--dirty", "--tags"], "nogit")
 branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], "?")
-build_id = "%s@%s" % (rev, branch)
+# Build timestamp makes the id UNIQUE PER BUILD. git describe only moves on a
+# commit, and "-dirty" is a binary flag, so two different uncommitted builds from
+# the same commit would otherwise share an id (the backend hit exactly that).
+stamp  = datetime.now().strftime("%Y%m%dT%H%M%S")
+build_id = "%s@%s+%s" % (rev, branch, stamp)
 print("git_rev.py -> GIT_REV = " + build_id)
 env.Append(CPPDEFINES=[("GIT_REV", env.StringifyMacro(build_id))])

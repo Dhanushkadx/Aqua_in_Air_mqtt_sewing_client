@@ -22,8 +22,8 @@ static bool          s_ota_frozen = false;   // pixel rendered once for OTA, the
 
 void led_status_set_ota(bool active) { s_ota_active = active; }
 
-#ifdef VERO_BOARD
-// Vero has no WS2812 pixel — two plain LEDs carry the status instead:
+#if defined(VERO_BOARD) || defined(IOT_OLD_PCB)
+// Boards with no WS2812 pixel (vero, old PCB) — two plain LEDs carry status:
 //   PIN_LED_WIFI = WiFi state (blink patterns, from millis() so they stay smooth
 //                  regardless of call rate):
 //                    fast blink   = connecting (not yet associated)
@@ -77,8 +77,8 @@ void led_status_begin() {
 }
 
 void led_status_tick() {
-#ifdef VERO_BOARD
-    // Vero: WiFi status on PIN_LED_WIFI + MQTT status on PIN_ONLINE. Driven every
+#if defined(VERO_BOARD) || defined(IOT_OLD_PCB)
+    // No-pixel boards: WiFi status on PIN_LED_WIFI + MQTT status on PIN_ONLINE. Driven every
     // call (a digitalWrite is instant and, unlike NeoPixel show(), never disables
     // interrupts, so it is safe even during an OTA). No WS2812 on this board, so
     // nothing below applies.
